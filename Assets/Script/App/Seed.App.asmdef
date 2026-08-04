@@ -1,0 +1,31 @@
+{
+    "name": "Seed.App",
+    "rootNamespace": "Seed.App",
+    "references": [
+        "Seed.Hub",
+        "Seed.Hub.Contracts",
+        "Game.Battle.Contracts",
+        "Seed.Character",
+        "Seed.AI",
+        "Seed.Motion",
+        "Seed.UI",
+        "Seed.Input",
+        "Seed.Flow",
+        "Seed.Clock",
+        "Seed.Data",
+        "Seed.StageGen",
+        "Seed.Core",
+        "Seed.Core.Presenter",
+        "Seed.Core.Samples",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

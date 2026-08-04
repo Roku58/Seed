@@ -1,0 +1,18 @@
+{
+    "name": "Seed.Input",
+    "rootNamespace": "Seed.Input",
+    "references": [
+        "Seed.Hub",
+        "Seed.Hub.Contracts",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

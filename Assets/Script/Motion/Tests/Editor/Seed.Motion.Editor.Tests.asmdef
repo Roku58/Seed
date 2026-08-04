@@ -1,0 +1,25 @@
+{
+    "name": "Seed.Motion.Editor.Tests",
+    "rootNamespace": "Seed.Motion.Tests",
+    "references": [
+        "Seed.Motion",
+        "Seed.Character",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

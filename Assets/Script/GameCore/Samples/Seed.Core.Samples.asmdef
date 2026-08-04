@@ -1,0 +1,17 @@
+{
+    "name": "Seed.Core.Samples",
+    "rootNamespace": "Seed.Core.Samples",
+    "references": [
+        "Seed.Core",
+        "Seed.Core.Presenter"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

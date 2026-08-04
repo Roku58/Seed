@@ -1,0 +1,17 @@
+{
+    "name": "Seed.Clock",
+    "rootNamespace": "Seed.Clock",
+    "references": [
+        "Seed.Hub",
+        "Seed.Hub.Contracts"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}
