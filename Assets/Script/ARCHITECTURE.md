@@ -6,14 +6,13 @@
 
 ## 基盤一覧と依存ルール
 
-```
 Assets/Script/
 ├─ GameCore/    Seed.Core（決定的ロジック）/ .Presenter / .Samples   … 何にも依存しない
 ├─ Hub/         Seed.Hub（MessageHub/ServiceRegistry/SubscriptionBag）
 │               + Seed.Hub.Contracts（エンジン恒久契約。noEngineReferences）
 │               + Seed.Hub.Unity（HubVector3⇔Vector3 変換だけの薄い橋）      … 何にも依存しない
 │               + Seed.Hub.Editor（メニュー Seed/Message Tracer＝メッセージフローの観測ウィンドウ）
-├─ Game/        Game.<Title>.Contracts（タイトル/ジャンル固有の契約。例: Game.Battle.Contracts）
+├─ Game/        Game..Contracts（タイトル/ジャンル固有の契約。例: Game.Battle.Contracts）
 │               … Seed.Hub.Contracts のみに依存。タイトル追加＝契約asmdef追加で、恒久契約は肥大しない
 ├─ Character/   Seed.Character（アクター制御。下記参照）              … Hubのみに依存
 ├─ UI/          Seed.UI（レイヤ付き画面交通整理: UIScreen/ScreenRouter）… Hubのみに依存
@@ -31,13 +30,13 @@ Assets/Script/
 │               + Seed.Data.Editor（メニュー Seed/Master Data Browser＝一覧・検索・ID重複検証・空きID提案。
 │                 定義アセットの Inspector にも重複警告と空きID割り当てボタンが出る）
 └─ App/         Seed.App（合成ルート・方針・CoreHubBridge・統合デモ）  … 全部を知る唯一の場所
-                App/Foundation/ = 合成ルートの再利用骨格
-                （TickPipeline / CompositionScope / RecordHubTranslator / LogicInputFunnel）
-```
+App/Foundation/ = 合成ルートの再利用骨格
+（TickPipeline / CompositionScope / RecordHubTranslator / LogicInputFunnel）
+
 
 - **基盤同士は互いを知らない**。会話はすべて Hub（メッセージ）か ServiceRegistry（同期問い合わせ）経由
 - **契約は2階層**。Seed.Hub.Contracts＝エンジン恒久契約（共有ID・恒久メッセージ・サービスIF）。
-  タイトル固有の語彙（AttackRequested 等）は Game.<Title>.Contracts に置く。
+  タイトル固有の語彙（AttackRequested 等）は `Game.<Title>.Contracts` に置く。
   1基盤しか使わない型を契約に置いたら設計ミス
 - **GameCore は Hub すら参照しない**（決定性・テスト・ヘッドレス実行の純度維持）。翻訳は App の CoreHubBridge が担う
 - **方針（出来事→リアクションの変換ルール・AI思考・ターゲット選択）は App が持つ**。基盤は無方針の道具に徹する
@@ -55,19 +54,18 @@ Assets/Script/
 | 列挙・検索したい | ServiceRegistry のIF（バッファ詰め） | ICharacterRoster.Query(陣営, 生存) |
 | 毎フレームの連続値 | メッセージに流さない。サービスIFで読む | カメラ追従の位置取得 |
 
-- 購読の保持は `SubscriptionBag`（`.AddTo(bag)`）に統一。手書きの List<IDisposable> は書かない
+- 購読の保持は `SubscriptionBag`（`.AddTo(bag)`）に統一。手書きの `List<IDisposable>` は書かない
 - メッセージフローの観測は `MessageHub.MessagePublished` / `DeliveryFailed` フック
   （購読者の例外は後続の配達を止めず、ここへ集約される）
 
 ## ゲームフロー（Seed.Flow）——フェーズとステージの切り替え
 
-```
 永続ルート（MonoBehaviour 1枚。Hub/Services/Input/マスターデータ/カメラ/GameFlow を所有）
- └ GameFlow（遷移状態機械。ChangePhaseCommand の唯一の処理者）
-    └ GamePhase（ホーム・戦闘・ショップ… 1フェーズ=1合成ルート）
-       OnEnter(payload) で基盤・舞台・画面を CompositionScope に組み立て
-       OnExit() で逆順に片付け、舞台GameObjectごと破棄する
-```
+└ GameFlow（遷移状態機械。ChangePhaseCommand の唯一の処理者）
+└ GamePhase（ホーム・戦闘・ショップ… 1フェーズ=1合成ルート）
+OnEnter(payload) で基盤・舞台・画面を CompositionScope に組み立て
+OnExit() で逆順に片付け、舞台GameObjectごと破棄する
+
 
 - **遷移は必ず「要求→次Tickで Exit→（非同期ロード待ち）→Enter→PhaseChanged 通知」**。
   フェーズ自身の Tick 中に要求しても安全（遅延実行）。ロード中は LoadProgress でローディング表示
@@ -110,12 +108,11 @@ dt の供給源は時間基盤（GameClock）ただ1つ。永続ルートが毎�
 
 ## ステージ自動生成（Seed.StageGen）——設計図と施工の分離
 
-```
 設定＋seed → GenerationPipeline（IGenerationPass の列。パスごとに random.Fork()）
-           → StageBlueprint（設計図: セル種別/素材バリアント/バイオームの3レイヤー
-                             ＋区画＋配置物リスト。純C#・決定的）
-           → StageBuilder（施工。アセットパレット＋配置表。抽選はしない）
-```
+→ StageBlueprint（設計図: セル種別/素材バリアント/バイオームの3レイヤー
+＋区画＋配置物リスト。純C#・決定的）
+→ StageBuilder（施工。アセットパレット＋配置表。抽選はしない）
+
 
 - **同じ seed＋設定＋パス列 → バイト単位で同一の設計図**（見た目の抽選まで生成側で焼き込む）。
   ステージも決定的リプレイ・将来のロックステップの一部になる
@@ -131,16 +128,15 @@ dt の供給源は時間基盤（GameClock）ただ1つ。永続ルートが毎�
 
 ## モーション基盤（Seed.Motion）——アニメーション・姿勢・IK
 
-```
 Behavior遷移（真実） → RiggedAvatar（IAvatar実装）
-  ├ AnimationDriver … Playables直駆動のクロスフェード再生（AnimatorControllerアセット不要）。
-  │   全身＋上半身の2レイヤー（AvatarMaskで範囲指定＝走りながら上半身だけ攻撃）。
-  │   正規化時間‰イベント（MotionSet登録）→ IAvatarEventSink → 行動側へ還流
-  └ MotionRig（LateUpdate） … アニメの上へ重ねる姿勢・IK
-      LookAtRig（注視・可動域クランプ）/ TwoBoneIkRig（腕・脚の解析解）/
-      ChainIkRig（FABRIK。尻尾・触手）/ FootIkRig（両足の接地適応＋腰の高さ吸収）/
-      SpringBoneRig（揺れもの: 髪・尻尾・マント。Verlet＋長さ拘束＋球コライダー押し出し）
-```
+├ AnimationDriver … Playables直駆動のクロスフェード再生（AnimatorControllerアセット不要）。
+│   全身＋上半身の2レイヤー（AvatarMaskで範囲指定＝走りながら上半身だけ攻撃）。
+│   正規化時間‰イベント（MotionSet登録）→ IAvatarEventSink → 行動側へ還流
+└ MotionRig（LateUpdate） … アニメの上へ重ねる姿勢・IK
+LookAtRig（注視・可動域クランプ）/ TwoBoneIkRig（腕・脚の解析解）/
+ChainIkRig（FABRIK。尻尾・触手）/ FootIkRig（両足の接地適応＋腰の高さ吸収）/
+SpringBoneRig（揺れもの: 髪・尻尾・マント。Verlet＋長さ拘束＋球コライダー押し出し）
+
 
 - **状態機械を二重に作らない**: 遷移の真実は Behavior。アニメ側は MotionSet
   （MotionClipId→クリップ＋再生仕様）の台帳と対応表（既定は同値素通し）だけ
@@ -157,16 +153,15 @@ Behavior遷移（真実） → RiggedAvatar（IAvatar実装）
 
 ## キャラクター基盤（Seed.Character）のアクター制御アーキテクチャ
 
-```
 CharactersManager（全体管理: 陣営の束・Tick順・名簿・リアクションの順序采配）
- └ PlayersManager / EnemiesManager（陣営管理: FactionId付与・Add順にTick・退場時のAvatar解放まで一気通貫）
-    └ PlayerController / EnemyController（ユニット制御: LogicとAgentの結線）
-       ├ Logic（頭脳: ManualLogic=手動 / AI思考ルーチンはApp側で実装）
-       └ CharacterAgent（1ユニット: 複数Actorの切替・リアクション受け口・生存写し・プール再利用）
-          └ CharacterActor（Presenter: Behavior状態機械＋ActorPose＋Avatar）
-             ├ Behavior（行動の数だけ用意。CharacterBehaviorBase / TimedBehaviorBase を継承）
-             └ Avatar（View: Avatar3D=モデル / Avatar2D=立ち絵 / NullAvatar）
-```
+└ PlayersManager / EnemiesManager（陣営管理: FactionId付与・Add順にTick・退場時のAvatar解放まで一気通貫）
+└ PlayerController / EnemyController（ユニット制御: LogicとAgentの結線）
+├ Logic（頭脳: ManualLogic=手動 / AI思考ルーチンはApp側で実装）
+└ CharacterAgent（1ユニット: 複数Actorの切替・リアクション受け口・生存写し・プール再利用）
+└ CharacterActor（Presenter: Behavior状態機械＋ActorPose＋Avatar）
+├ Behavior（行動の数だけ用意。CharacterBehaviorBase / TimedBehaviorBase を継承）
+└ Avatar（View: Avatar3D=モデル / Avatar2D=立ち絵 / NullAvatar）
+
 
 - **MonoBehaviour は Avatar の実装だけ**。Manager〜Behavior は純C#で、NUnit EditMode で直接テストできる
 - **「状態は Tick、艶は Update」**——Avatar 側の Update に許されるのは色フェード等の純装飾のみ
@@ -184,12 +179,11 @@ CharactersManager（全体管理: 陣営の束・Tick順・名簿・リアクシ
 
 ### AI基盤（Seed.AI）——キャラクターAIとメタAI
 
-```
 AiDirector（メタAI: 戦場全体の采配。指示書 AiOrders を配る＝攻撃権・手心・注目対象）
- └ AiBrain（キャラAI: ICharacterLogic 実装。Consideration を採点し最高得点の意図を採用）
-    └ IAiConsideration（思考の1候補。「追う」「攻撃する」…候補の数だけ用意する拡張点）
-       出力は CharacterIntent（＝入力と同じ語彙）
-```
+└ AiBrain（キャラAI: ICharacterLogic 実装。Consideration を採点し最高得点の意図を採用）
+└ IAiConsideration（思考の1候補。「追う」「攻撃する」…候補の数だけ用意する拡張点）
+出力は CharacterIntent（＝入力と同じ語彙）
+
 
 - **制御の経路はプレイヤーもNPCもエネミーも完全に共通**。AIは意図（CharacterIntent）を
   出すだけで、Controller/Agent/Behavior から見れば手動入力と区別がつかない
@@ -210,7 +204,7 @@ AiDirector（メタAI: 戦場全体の采配。指示書 AiOrders を配る＝�
 | 陣営 | UnitManager を継承して CharactersManager.AddManager（FactionId は3以降） |
 | 画面 | UIScreen を継承（Layer で Base/Overlay/Modal を宣言）→ UISystem.Register |
 | マスターデータ | EntityDefinitionData 継承のDTO（JSON/SO/コード）→ MasterDataSet → MasterDataLoader.RegisterAll |
-| メッセージ | タイトル固有なら Game.<Title>.Contracts へ。INotificationMessage / ICommandMessage を必ず付ける |
+| メッセージ | タイトル固有なら `Game.<Title>.Contracts` へ。`INotificationMessage` / `ICommandMessage` を必ず付ける |
 | フェーズ（ホーム/戦闘/ショップ…） | GamePhase を継承して GameFlow.AddPhase 1行。PhaseId はアプリ定数 |
 | AIの思考（追う/逃げる/詠唱…） | IAiConsideration を1クラス書いて AiBrain.With で装着（採点の重みがゲームの個性） |
 | メタAIの采配 | AiDirector を継承して指示書（AiOrders）の発行ルールを書く。同時攻撃数は AttackTokenPool |
