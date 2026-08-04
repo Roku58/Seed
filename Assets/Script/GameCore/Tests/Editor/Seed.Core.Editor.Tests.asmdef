@@ -1,0 +1,26 @@
+{
+    "name": "Seed.Core.Editor.Tests",
+    "rootNamespace": "Seed.Core.Tests",
+    "references": [
+        "Seed.Core",
+        "Seed.Core.Samples",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "Seed.Core.Presenter"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

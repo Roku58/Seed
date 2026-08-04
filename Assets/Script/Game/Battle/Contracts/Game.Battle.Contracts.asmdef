@@ -1,0 +1,16 @@
+{
+    "name": "Game.Battle.Contracts",
+    "rootNamespace": "Game.Battle.Contracts",
+    "references": [
+        "Seed.Hub.Contracts"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

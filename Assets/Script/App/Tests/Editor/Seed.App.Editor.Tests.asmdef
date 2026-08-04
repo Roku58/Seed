@@ -1,0 +1,30 @@
+{
+    "name": "Seed.App.Editor.Tests",
+    "rootNamespace": "Seed.App.Tests",
+    "references": [
+        "Seed.App",
+        "Seed.Hub",
+        "Seed.Hub.Contracts",
+        "Game.Battle.Contracts",
+        "Seed.Character",
+        "Seed.Core",
+        "Seed.Core.Samples",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
