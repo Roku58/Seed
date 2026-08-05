@@ -123,6 +123,34 @@ parent Transform 配下の GameObject 群（フェーズ退場時に親ごと De
 
 Console に出る可能性があるのは 2 種類です。`SetPlacement` を登録していない配置種別が設計図に載っていると `[StageBuilder] 実体化表に無い配置種別: Placement#N（SetPlacement を追加すること）` という警告が出ます。パレットにも内蔵色にも無い未知のセル種別は**マゼンタ色**で建つので、目で見て気づけます。
 
+### エディタでアセットを紐付ける（Seed/Stage Palette）
+
+プレハブと役割（バイオーム・セル種別・バリアント・配置種別）の対応は、コードではなく
+資産（ScriptableObject）に保存できます。手順は次のとおりです。
+
+1. Unity メニューバーの **`Seed`** → **`Stage Palette`** をクリック（ウィンドウが開きます）
+2. ツールバーの **「新規作成」** を押し、保存先とファイル名を決める（既定 `StagePalette.asset`）。
+   Project ビューから `Seed > Stage Palette` で作っても同じものができます
+3. **「定番の役割の雛形を並べる（未登録ぶんだけ行を追加）」** を押す。
+   床・壁・道路・建物・出入口と、開始地点・敵の出現・出口・店・宝箱・イベントの行が並びます
+4. 各行の **「プレハブ」** 欄へ Project ビューからプレハブをドラッグする。
+   原点が足元でないモデルは **「高さ調整」** で補正し、1×1 前提のモデルは
+   **「セルの大きさに合わせる」** をチェックする
+5. 上部に出る案内を確認する
+   - 「プレハブ未登録の地形（内蔵プリミティブで建ちます）: …」——**埋めていない役割があっても動きます**
+   - 「不備 N 件」——キーの重複やプレハブ未設定。ツールバーの **「検証」** で Console にも出せます
+6. **「保存」**（または `Ctrl+S`）
+
+> 📖 **用語 — キーの重複が危険な理由**: パレットの登録は「同じ (バイオーム, セル種別, バリアント) は
+> 後の行が上書きする」辞書です。重複した行は**黙って無効になる**ため、実行時には
+> 「なぜかこのプレハブが使われない」という形でしか気づけません。
+> ウィンドウの検証はこれを Play 前に見つけます。
+
+> 📖 **用語 — なぜ素の ScriptableObject なのか**: マスターデータ基盤の
+> `EntityDefinitionAsset`（→ [07_Data.md](07_Data.md)）を継承すると、StageGen が `Seed.Data` へ
+> 依存することになり「StageGen は `Seed.Core` のみに依存」という構成が壊れます。
+> ID 管理を必要としない紐付け表なので、素の ScriptableObject にしています。
+
 ## 4. コードで使う
 
 ### 最小例 — 迷路を生成して建てるだけ
@@ -215,6 +243,45 @@ BuildPlayerUnit(spec, blueprint.GridToWorld(playerSpawn.X, playerSpawn.Y) + Vect
 
 市街側は下地と骨格のパスだけが違います（`FillPass(CellType.Floor)` → `BspDistrictPass(minDistrictSize: 7)` → `BuildingPlacementPass()` → `BiomeAssignPass.RegionBased(ResidentialBiome, MarketBiome)` → … → `LandmarkPlacementPass(PlacementKind.Shop, 0, LandmarkRule.RegionCenter, MarketBiome)`）。**施工側のコードは 1 行も変わりません**——設計図の形式が同じだからです。
 
+### 実戦例 — 紐付け資産を実行時へ流し込む
+
+エディタで作った資産は2行で施工へ渡ります。生成側（パイプライン）は一切変わりません。
+
+```csharp
+using Seed.StageGen;
+using UnityEngine;
+
+/// <summary>紐付け資産からステージを建てる（合成ルート側）。</summary>
+public void BuildFromAsset(StagePaletteAsset palette, StageBlueprint blueprint, Transform parent)
+{
+    // 1) 地形: 役割→プレハブの対応表を組む（未登録の役割は内蔵プリミティブへ落ちる）
+    var builder = new StageBuilder(palette.BuildPalette());
+
+    // 2) 配置物: 出口・店・宝箱などの実体化を登録する
+    palette.ApplyPlacements(builder);
+
+    // 3) 施工不要な種別も空実装で登録しておく（未登録は警告になる規約）
+    builder.SetPlacement(PlacementKind.PlayerSpawn,
+        (in Placement _, Vector3 __, Transform ___) => { });
+
+    builder.Build(blueprint, parent);
+}
+```
+
+Play 前に不備を確かめたいときは、実行時にも同じ検証を使えます。
+
+```csharp
+var problems = palette.Validate();      // 空リストなら合格
+for (var i = 0; i < problems.Count; i++)
+{
+    Debug.LogWarning($"[StagePalette] {problems[i]}");
+}
+```
+
+この資産が持つのは「役割 → プレハブ」の対応だけで、**抽選は一切しません**
+（バリアントの抽選は生成側で設計図へ焼き込み済み）。施工で乱数を引くと
+「同じシードなのに見た目が違う」が起きてリプレイと矛盾するためです。
+
 ## 5. 仕組み
 
 ### なぜ施工で抽選しないのか
@@ -293,7 +360,8 @@ BuildPlayerUnit(spec, blueprint.GridToWorld(playerSpawn.X, playerSpawn.Y) + Vect
 
 - **地形の種類を増やす（洞窟・塔・ダンジョン…）**: `Assets/Script/StageGen/Runtime/Passes/` に `IGenerationPass` 実装を 1 つ書き（`Name` と `Execute`）、パイプラインへ `.Add()` する。既製パスが実装の手本（`FillPass` は 25 行程度）
 - **ステージを増やす**: `Sample_MasterCatalog.Build` に `Sample_StageSpec` を 1 件（`generatorKind`: 0=平地 / 1=迷路 / 2=街、`genWidth` / `genHeight` は奇数推奨、`braidPermille`）＋ `Sample_HomePhase.Tick` にメニュー行と出撃キーを足す。ステージ ID は 201 番から（`catalog.ValidateGlobalIdUniqueness()` が全体の一意性を検証）
-- **美術アセットへ差し替える**: `Sample_BattlePhase.BuildPalette` の `.Bind(バイオーム, セル種別, バリアント, PrimitiveTiles.〜)` を、プレハブを `Instantiate` する `TileFactory` に置き換える。生成ロジックは一切変わらない
+- **美術アセットへ差し替える（エディタ経路・推奨）**: メニュー `Seed/Stage Palette` で紐付け資産を作り、プレハブを割り当てて `palette.BuildPalette()` / `palette.ApplyPlacements(builder)` を渡す。**コードは触らない**
+- **美術アセットへ差し替える（コード経路）**: `Sample_BattlePhase.BuildPalette` の `.Bind(バイオーム, セル種別, バリアント, PrimitiveTiles.〜)` を、プレハブを `Instantiate` する `TileFactory` に置き換える。生成ロジックは一切変わらない
 - **配置物の種類を増やす**: `new PlacementKind(100)` 以降で発番 → `LandmarkPlacementPass` を 1 行 `.Add()`（規則は `Farthest` / `RandomWalkable` / `RegionCenter`）→ `StageBuilder.SetPlacement` で実体化を 1 行登録
 - **セル種別を増やす**: `new CellType(100)` 以降で発番。**奇数 = 歩行可能**の規約（例: 101=浅瀬（可）/ 102=深い水路（不可））。見た目は `Bind` か `SetFallbackColor`
 - **手作り部屋を増やす**: `RoomTemplateLegend`（`.Cell(char, CellType)` / `.Door(char)` / `.Placement(char, 下地セル, PlacementKind, refId)`）＋ `RoomTemplate.Parse(string[], legend)` → `TemplateRoomsPass` へ渡す。行文字列を `EntityDefinitionAsset` 派生の SO に持たせれば、企画が Inspector で部屋を書けるようになる
@@ -309,6 +377,8 @@ BuildPlayerUnit(spec, blueprint.GridToWorld(playerSpawn.X, playerSpawn.Y) + Vect
 - `Assets/Script/StageGen/Runtime/CellType.cs` / `BiomeId.cs` / `PlacementKind.cs` — 増える語彙の値型と `Placement`
 - `Assets/Script/StageGen/Runtime/RoomTemplate.cs` — 手作り部屋の文字列パーサと凡例
 - `Assets/Script/StageGen/Runtime/TileVariantTable.cs` / `PlacementTable.cs` — バリアント重み表・出現テーブル
+- `Assets/Script/StageGen/Runtime/Builder/StagePaletteAsset.cs` — プレハブ紐付け資産と表示名（`StageGenNames`）
+- `Assets/Script/StageGen/Editor/StagePaletteWindow.cs` — セットアップウィンドウ（`Seed/Stage Palette`）
 - `Assets/Script/StageGen/Runtime/Passes/` — `FillPass` / `MazeCarvePass` / `TemplateRoomsPass` / `BspDistrictPass` / `BuildingPlacementPass` / `BiomeAssignPass` / `TileVariantPass` / `PlayerSpawnPass` / `EnemyPlacementPass` / `LandmarkPlacementPass`
 - `Assets/Script/StageGen/Runtime/Builder/StageAssetPalette.cs` — 素材登録表・フォールバック連鎖・`PrimitiveTiles`
 - `Assets/Script/StageGen/Runtime/Builder/StageBuilder.cs` — 施工者と未登録警告

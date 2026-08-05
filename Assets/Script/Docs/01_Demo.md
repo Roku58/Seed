@@ -249,6 +249,6 @@ Play すると `Start` で永続ルートが組まれ、以降は毎フレーム
 - `Assets/Script/App/Samples/Sample_MasterCatalog.cs` / `Sample_StageSpec.cs` — マスターデータ
 - `Assets/Script/App/Samples/Sample_TextPanel.cs` — OnGUI のテキストメニュー
 - `Assets/Scenes/SampleScene.unity` — 起動用シーン（Runner は未配置）
-- テスト: `Assets/Script/App/Tests/Editor/`（FoundationTests / HubIntegrationTests / EnemyTimerLogicTests）。実行方法は [14_Tests.md](14_Tests.md)
+- テスト: `Assets/Script/App/Tests/Editor/`（FoundationTests / HubIntegrationTests / EnemyTimerLogicTests）。実行方法は [17_Tests.md](17_Tests.md)
 
 [← 前: README](README.md) | [索引](README.md) | [次: 02_Hub →](02_Hub.md)

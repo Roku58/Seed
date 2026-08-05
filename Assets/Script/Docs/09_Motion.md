@@ -46,7 +46,10 @@ Seed.Motion は「Behavior 遷移（真実）をアニメ表現へ翻訳する�
 | CrossfadeState | フェード重みとイベント発火の状態機械（純C#） |
 | RiggedAvatar / MotionBindings | IAvatar 実装。行動遷移→クロスフェード翻訳と、行動キー→モーションの対応表 |
 | MotionRig / IPoseRig | リグ統括（登録順に LateUpdate で適用） |
-| LookAtRig / TwoBoneIkRig / ChainIkRig / FootIkRig | 注視 / 2ボーンIK / FABRIK / 接地 |
+| LookAtRig / TwoBoneIkRig / ChainIkRig | 注視 / 2ボーンIK / FABRIK |
+| FootIkRig | 足の接地適応（階段・段差・坂）。地面問い合わせと解決器を束ねる |
+| IGroundProbe / GroundHit / PhysicsGroundProbe | 地面問い合わせの契約と Physics 実装（差し替え可能） |
+| FootPlacementSolver / FootIkSettings | 接地の解き方（純C#。段差・傾斜の上限と時間追従） |
 | SpringBoneRig / SpringBoneChain / SpringBoneParams | 揺れもの（Verlet・固定 1/60 秒刻み・球コライダー押し出し） |
 | RootMotionRelay | ルートモーション捕獲（`TakeDelta()` / `TakeRotation()` を Tick 側が消費） |
 
@@ -148,16 +151,24 @@ var hips     = animator.GetBoneTransform(HumanBodyBones.Hips);
 var look = new LookAtRig((head, 1f, 70f));                        // (ボーン, 配分, 最大角)の列
 var arm  = new TwoBoneIkRig(shoulder, elbow, hand,
     poleHint: model.transform.position - model.transform.forward * 2f + Vector3.up);
+var footSettings = new FootIkSettings                               // 既定値は人型向け
+{
+    MaxStepHeight = 0.45f,                                         // これを超える高低差は足場と見なさない
+    MaxSlopeDegrees = 50f,                                         // これより急な面は壁として扱う
+    MaxHipDrop = 0.35f,                                            // 腰を沈める上限
+};
 var foot = new FootIkRig(hips,
-    new FootIkRig.Leg(
+    new FootIkRig.Leg(                                             // 第4引数のつま先は任意
         animator.GetBoneTransform(HumanBodyBones.LeftUpperLeg),
         animator.GetBoneTransform(HumanBodyBones.LeftLowerLeg),
-        animator.GetBoneTransform(HumanBodyBones.LeftFoot)),
+        animator.GetBoneTransform(HumanBodyBones.LeftFoot),
+        animator.GetBoneTransform(HumanBodyBones.LeftToes)),
     new FootIkRig.Leg(
         animator.GetBoneTransform(HumanBodyBones.RightUpperLeg),
         animator.GetBoneTransform(HumanBodyBones.RightLowerLeg),
-        animator.GetBoneTransform(HumanBodyBones.RightFoot)),
-    groundMask);                                                   // footHeight=0.1, castRange=1 が既定
+        animator.GetBoneTransform(HumanBodyBones.RightFoot),
+        animator.GetBoneTransform(HumanBodyBones.RightToes)),
+    groundMask, footSettings, castRange: 1f);                      // 地面問い合わせを渡す形もある
 
 var hairParams = SpringBoneParams.Default;                         // 髪向け既定: 40/0.2/(0,-2,0)/0.05
 hairParams.Stiffness = 25f;                                        // 柔らかめに調整
@@ -247,7 +258,49 @@ arm.SetTarget(enemyPosition + Vector3.up * 0.6f);
   > 📖 **用語 — FABRIK**: Forward And Backward Reaching IK。関節列を先端側から・根本側から交互に引き直して収束させる反復法。関節数が多くても安定
 - **揺れの質感**: `SpringBoneParams` の 4 値（Stiffness=硬さ / Drag=減衰 0〜1 / Gravity=垂れ / JointRadius=関節の太さ）。既定は髪向け 40 / 0.2 / (0,−2,0) / 0.05。マントは Gravity 強め、アホ毛は弱め
 - **風の演出**: `SpringBoneRig.ExternalForce` へ毎フレーム外力を設定（風向・強弱の方針は App が持つ）
-- **接地の適応**: `FootIkRig`。両足の上方からレイキャストし、低い方の足に合わせて腰を沈め、各足を TwoBoneIK で着地点へ。空中では呼び出し側が Weight=0 にする（レイキャストごと省かれる）
+### 足の接地適応（階段・段差・坂）
+
+アニメーションクリップは平地を前提に作られているため、階段や坂ではそのままだと足が浮く/めり込みます。
+`FootIkRig` はアニメの上に「実際の地面へ合わせる補正」を重ねます。解き方は5段階です。
+
+1. **必要な上下量を測る**。各足について「アニメ位置から地面（＋足首の高さ）へ合わせるのに必要な量」を
+   キャラの上方向へ射影して求めます
+2. **足場かどうか判定する**。その量が `MaxStepHeight` を超える足は「そこは足を置く場所ではない」と
+   判断して適用率を 0 へ落とします——階段を上るとき、**1段先の蹴上げに足が吸い付いて脚が伸び切るのを防ぐ**
+   のがこの判定です（穴の縁でも同様に働きます）
+3. **深い側に合わせて腰を沈める**。両足のうち低い地面に合わせる必要がある側に合わせ、`MaxHipDrop` で
+   クランプします。片足だけ届かず伸び切る不自然さを避ける、アクションゲームの定番の作りです
+4. **足裏を法線へ沿わせる**。アニメの回転を保ったまま足の上方向だけを地面の法線へ倒します。
+   ただし `MaxSlopeDegrees` を超える面は壁とみなし、**回転合わせをしません**（壁に足裏を貼らない）
+5. **時間追従で平滑化する**。すべての量を速度制限つきで追従させます。段差をまたぐ瞬間に足が飛ばないため。
+   初回だけは平滑化せず即座に合わせます（出現フレームのガクつきを避ける）
+
+設定は `FootIkSettings`（既定値は人型・身長 1.7m 前後を想定）。
+
+| 項目 | 既定 | 意味 |
+|---|---|---|
+| `FootHeight` | 0.1 | 接地点から足ボーンまでの高さ（m） |
+| `MaxStepHeight` | 0.45 | 足を合わせる高低差の上限（m）。超えたら IK を切る |
+| `MaxSlopeDegrees` | 50 | 足裏を沿わせる傾斜の上限（度）。超えたら壁として扱う |
+| `MaxHipDrop` | 0.35 | 腰を沈められる上限（m）。座り込みを防ぐ |
+| `FootFollowSpeed` | 3.5 | 足の追従速度（m/s）。大きいほど地形に忠実 |
+| `HipFollowSpeed` | 1.8 | 腰の追従速度（m/s）。足より遅くすると重心移動が滑らかに見える |
+| `FootRotationSpeed` | 360 | 足の回転追従（度/s） |
+| `WeightFadeSpeed` | 6 | 接地重みのフェード速度（1/s）。空中への切り替えを滑らかにする |
+| `RotateToNormal` | true | 法線へ沿わせるか（false なら位置合わせのみ） |
+
+> 📖 **用語 — つま先レイ**: `FootIkRig.Leg` の第4引数につま先ボーンを渡すと、
+> かかととつま先の**2点**で地面を探し、**高い方**を採用します。段差の縁に立ったとき、
+> 低い側に合わせて足が地面へ埋まるのを防ぐためです。
+
+**地面の問い合わせは `IGroundProbe` で抽象化**しています（既定の実装は `PhysicsGroundProbe`＝
+`Physics.Raycast`）。理由は2つあり、1つは EditMode テストで階段・傾斜・穴を偽の地面として与えて
+接地の解き方を検証できること（`FootIk_` で始まるテスト9件がそれです）、
+もう1つはハイトマップ・ボクセル・NavMesh を地面にするゲームでも本体を書き換えずに済むことです。
+
+キャラ本体の高さ（どの段に立っているか）は足IKの担当ではなく `IMotionSolver` の担当です。
+デモは App 実装の `Sample_GroundSnapSolver` が本体の高さを地面へ吸着させ、
+**足元の細かな凹凸は足IKが吸収する**二段構成にしています。
 
 ## 8. 関連ファイルとテスト
 
@@ -258,6 +311,8 @@ arm.SetTarget(enemyPosition + Vector3.up * 0.6f);
 - `Assets/Script/Motion/Runtime/RootMotionRelay.cs` — ルートモーション中継
 - `Assets/Script/Motion/Runtime/Rig/` — MotionRig / LookAtRig / TwoBoneIkRig / ChainIkRig / FootIkRig / SpringBoneRig
 - `Assets/Script/Motion/Runtime/Ik/` — LookAtSolver / TwoBoneIkSolver / FabrikSolver（純数学）
+- `Assets/Script/Motion/Runtime/Ground/` — IGroundProbe / GroundHit / PhysicsGroundProbe / FootPlacementSolver / FootIkSettings
+- `Assets/Script/App/Samples/Sample_GroundSnapSolver.cs` — 本体の高さを地面へ吸着（App の方針実装）
 - `Assets/Script/Motion/Runtime/Spring/SpringBoneChain.cs` — 揺れシミュレーション本体
 - `Assets/Script/App/Samples/Sample_BattlePhase.cs` — デモ装着（AttachDemoMotionRig / UpdateDemoRig）
 - テスト: `Assets/Script/Motion/Tests/Editor/MotionTests.cs` — IK 解析解・‰イベント（ループ折り返し含む）・揺れの数値検証。ソルバーと CrossfadeState が純C#だから EditMode で検証できます

@@ -1,6 +1,6 @@
 # 13. Seed.Persistence — セーブ/ロード（`byte[]` を壊さずディスクへ置く）
 
-[← 前: 12_GameCore](12_GameCore.md) | [索引](README.md) | [次: 14_Tests →](14_Tests.md)
+[← 前: 12_GameCore](12_GameCore.md) | [索引](README.md) | [次: 14_Tests →](17_Tests.md)
 
 ## この章で分かること
 
@@ -285,7 +285,7 @@ if (replay != null)
 - **形式を変えたとき**: `new FileSaveStore(dir, version: 2)` と版数を上げる。旧版を読む必要があれば旧 version の store も作り、`TryLoad` が成功した方から変換して新版で `TrySave`
 - **セーブデータの中身を作る**: 直列化はゲーム側。既存の実装例は `Assets/Script/GameCore/Runtime/Replay/InputJournalCodec.cs`（`BinaryWriter` で固定順に書く方式）と、その入力変換 `Assets/Script/GameCore/Samples/ActionBattle/Replay/Sample_ActionInputCodec.cs`
 - **保存禁止プラットフォーム対応**: 合成ルートの分岐で `MemorySaveStore` を登録する。`Count` プロパティでテストから件数を検証できます
-- **テストを足す**: `Assets/Script/Persistence/Tests/Editor/SaveStoreTests.cs` に追記。一時ディレクトリの用意と片付けは既存の `SetUp` / `TearDown` に乗るだけです（→ [14_Tests](14_Tests.md)）
+- **テストを足す**: `Assets/Script/Persistence/Tests/Editor/SaveStoreTests.cs` に追記。一時ディレクトリの用意と片付けは既存の `SetUp` / `TearDown` に乗るだけです（→ [14_Tests](17_Tests.md)）
 - **オートセーブ**: 保存タイミングの方針は App。[03_Clock](03_Clock.md) の時間供給や [04_Flow](04_Flow.md) のフェーズ退場（`OnExit`）を契機にすると、フレーム途中の中途半端な状態を保存せずに済みます
 
 ## 8. 関連ファイルとテスト
@@ -299,4 +299,4 @@ if (replay != null)
 - `Assets/Script/Hub/Runtime/ServiceRegistry.cs` — 貸し出し台帳（`Register` / `Resolve` / `TryResolve`）
 - テスト: `Assets/Script/Persistence/Tests/Editor/SaveStoreTests.cs` — EditMode 6 件（封筒往復・破損拒否・往復と削除・ディスク破損検知・不正 key 拒否・メモリ実装の契約一致）。エンジン非依存なので Play 不要で回ります
 
-[← 前: 12_GameCore](12_GameCore.md) | [索引](README.md) | [次: 14_Tests →](14_Tests.md)
+[← 前: 12_GameCore](12_GameCore.md) | [索引](README.md) | [次: 14_Tests →](17_Tests.md)

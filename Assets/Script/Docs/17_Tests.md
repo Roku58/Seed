@@ -1,6 +1,6 @@
-# 14. テストの実行と読み方 — 全 215 件を仕様書として使う
+# 17. テストの実行と読み方 — 全 215 件を仕様書として使う
 
-[← 前: 13_Persistence](13_Persistence.md) | [索引](README.md) | [次: 索引へ戻る →](README.md)
+[← 前: 16_World](16_World.md) | [索引](README.md) | [次: 索引へ戻る →](README.md)
 
 ## この章で分かること
 
@@ -308,4 +308,4 @@ public void Foo_IsDeterministic()
 - `Assets/Script/Persistence/Tests/Editor/SaveStoreTests.cs` — `[SetUp]` / `[TearDown]` で一時ディレクトリを扱う型
 - `Assets/Script/App/Tests/Editor/HubIntegrationTests.cs` — 合成ルートの E2E（方針込みの検証はここへ）
 
-[← 前: 13_Persistence](13_Persistence.md) | [索引](README.md) | [次: 索引へ戻る →](README.md)
+[← 前: 16_World](16_World.md) | [索引](README.md) | [次: 索引へ戻る →](README.md)
