@@ -79,7 +79,7 @@ Sample_GameFlowRunner.Update()
 
 - カメラが (0, 8, -8) から (0, 1, 0) を注視する位置へ移動する
 - 画面左上に「== ホーム ==」と5行のメニュー（「[1] 出撃: 草原（敵の攻撃: ゆっくり）」「[3] ショップ」など。表示名はマスターデータ `Sample_StageSpec.DisplayName` から流し込まれる）
-- Hierarchy に「HomePhase」ルートが現れる。Console に本デモ由来のログは出ません（赤いエラーが出たら6章へ）
+- Hierarchy に「HomePhase」ルートが現れる。Console に本デモ由来のログは出ません（赤いエラーが出たら本章 6節へ）
 
 続けて触ってみる:
 
@@ -137,6 +137,7 @@ public sealed class MyGameRoot : MonoBehaviour
         // 3. フローへフェーズを登録し、初期フェーズを予約
         _flow = new GameFlow(_hub);
         _flow.AddPhase(new Sample_HomePhase(_hub, _input, catalog));
+        _flow.AddPhase(new Sample_BattlePhase(_hub, _services, _input, catalog));
         _flow.AddPhase(new Sample_ShopPhase(_hub, _input));
         _flow.Start(Sample_PhaseIds.Home);
     }
@@ -161,7 +162,11 @@ public sealed class MyGameRoot : MonoBehaviour
 }
 ```
 
-本物の `Sample_GameFlowRunner` はここへ「戦闘フェーズの登録」と「カメラ・ライトの自動生成（`BuildCameraAndLight`）」が加わるだけです。
+本物の `Sample_GameFlowRunner` はここへ「カメラ・ライトの自動生成（`BuildCameraAndLight`）」が加わるだけです。
+
+> ⚠️ `Sample_HomePhase` を使うなら `Sample_BattlePhase` の登録は必須です。ホームの [1][2][4][5] は
+> `ChangePhaseCommand(Battle, …)` を発行し、`GameFlow.RequestChange` は未登録フェーズに対して
+> HubException（「未登録のフェーズ（AddPhase 漏れかIDの打ち間違い）」）を投げるためです。
 
 > 📖 **用語 — LateUpdate**: すべての Update が終わった後に呼ばれる Unity のイベント関数。本デモでは `MessageHub.Pump()` をここに置き、「遅延メッセージは今フレームの連鎖の外へ回す」という約束を守っている（→ [02_Hub.md](02_Hub.md)）。
 
@@ -219,8 +224,8 @@ Play すると `Start` で永続ルートが組まれ、以降は毎フレーム
 ## 6. よくあるつまずき
 
 - **症状: キーを押しても何も反応しない** → 原因: `Sample_KeyboardReader` は Input System の `Keyboard.current` 直読みで、旧 Input Manager のみの設定では `Keyboard.current` が null になり `InputSnapshot.Empty` を返し続ける → 対処: Project Settings > Player > Active Input Handling を「Input System Package」か「Both」にする（本プロジェクトは Both 設定済みのはず。変更後はエディタ再起動を求められます）
-- **症状: Play しても画面に何も出ない** → 原因: Runner のアタッチ忘れ。`SampleScene.unity` に `Sample_GameFlowRunner` は**未配置**（シーンには置かれていません） → 対処: 3章の手順どおり空 GameObject へ手動でアタッチ
-- **症状: 自動操縦 [O] 中に操作が効かない** → 原因: 自動操縦中は `HandlePlayerInput` が AI の入力注入後に early return し、物理キーの WASD 移動・[1]攻撃・[G]ガードを読まない（仕様） → 対処: もう一度 [O] で解除。[B]（帰還）と [P]（ポーズ）はフェーズの Tick 側の処理なので自動操縦中も有効です。なお、自動操縦中に [T] の Actor 切替が効かない既知の問題があります
+- **症状: Play しても画面に何も出ない** → 原因: Runner のアタッチ忘れ。`SampleScene.unity` に `Sample_GameFlowRunner` は**未配置**（シーンには置かれていません） → 対処: 本章 3節の手順どおり空 GameObject へ手動でアタッチ
+- **症状: 自動操縦 [O] 中に操作が効かない** → 原因: 自動操縦中は `HandlePlayerInput` が AI の入力注入後に early return し、物理キーの WASD 移動・[1]攻撃・[G]ガードを読まない（仕様） → 対処: もう一度 [O] で解除。[B]（帰還）と [P]（ポーズ）はフェーズの Tick 側の処理なので自動操縦中も有効です。[T]（Actor 切替）も early return より前で処理されるため有効です（見た目の切替は操縦者と無関係のため）
 - **症状: カメラを手で置いたのに Play で位置が変わる** → 原因: Runner が Play 開始時に (0, 8, -8)→(0, 1, 0) 注視で上書きし、生成ステージ（迷宮・市街）入場時は戦闘フェーズがステージ寸法に合わせて再配置する → 対処: 仕様として受け入れる（固定ステージ入場では動かさないため、生成ステージから戻った後は俯瞰位置のまま残ります）
 - **症状: [2] 火山へ出撃したはずが草原になる** → 原因: `ChangePhaseCommand` の payload が 0 または catalog に無い StageId のとき、`ResolveStage` が Stage1（草原）へフォールバックする → 対処: `Sample_MasterCatalog` に StageId が登録済みか、payload に `StageId.Value` を渡しているかを確認
 - **症状: 生成ステージで敵が1体しか出ない** → 原因: GameCore サンプル世界（`Sample_ActionWorld`）が Hunter/Monster の 1v1 固定という既知の制約。実体化される敵は最初の EnemySpawn の1体のみ → 対処: 配置基盤側は複数・テーブル対応済みなので、ロジックを N 体対応にすれば実体化を回すだけ（→ [12_GameCore.md](12_GameCore.md)）

@@ -84,7 +84,8 @@ SO（EntityDefinitionAsset 派生）────┘    型ごと×ID索引
 2. Hierarchy で右クリック → Create Empty で空の GameObject を作成
 3. Inspector の Add Component から `Sample_GameFlowRunner` をアタッチ（カメラ・ライトは無ければ Start が自動生成します）
 4. Play を押す
-5. ホーム画面のメニュー「[1] 出撃: Grassland / [2] 出撃: Volcano / [3] ショップ / [4] 出撃: Labyrinth / [5] 出撃: Township」を確認
+5. ホーム画面のメニュー「[1] 出撃: 草原（敵の攻撃: ゆっくり） / [2] 出撃: 火山（敵の攻撃: 速い） / [3] ショップ / [4] 出撃: 迷宮（自動生成・出口を探せ） / [5] 出撃: 市街（自動生成・店に寄れる）」を確認
+   （画面に出るのは `DisplayName`。`Grassland` / `Volcano` / `Labyrinth` / `Township` は `DebugName` でログ・エディタ表示用です）
 
 各行の表示名・地面色・敵攻撃間隔は、すべて `Sample_MasterCatalog.Build` が組み立てる `Sample_StageSpec` のマスターデータ由来です。ステージ ID は 201〜204（Grassland=201 / Volcano=202 / Labyrinth=203 / Township=204）、ユニットは 1〜99 の帯を使っています。
 

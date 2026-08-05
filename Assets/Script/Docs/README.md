@@ -76,6 +76,9 @@ Seed の各サンプル・各基盤を「どう起動し、どう使い、どう
 | ActionBattle 自動デモ | `Sample_ActionBattleRunner` | 決定的ロジック＋リプレイ検証（全自動） | [12](12_GameCore.md) |
 | ActionBattle 対話型 | `Sample_ActionBattleInteractiveRunner` | 手で遊んで [V] でリプレイ検証 | [12](12_GameCore.md) |
 | ActionBattle 3D | `Sample_ActionBattle3DRunner` | 3D物理当たり判定との統合 | [12](12_GameCore.md) |
+| CommandBattle 自動デモ | `Sample_CommandBattleRunner` | もう1つのサンプル世界（コマンドバトル）の台本実行 | [12](12_GameCore.md) |
+| CommandBattle 対話型 | `Sample_CommandBattleInteractiveRunner` | コマンド選択で遊ぶ | [12](12_GameCore.md) |
+| CommandBattle 表示 | `Sample_CommandBattleViewRunner` | レコード→表示の変換例 | [12](12_GameCore.md) |
 
 ## エディタメニュー（Unity メニューバー）
 
@@ -90,7 +93,11 @@ Seed の各サンプル・各基盤を「どう起動し、どう使い、どう
 
 - **入力は Input System**（`Keyboard.current` 直読み）。デモ用 `Sample_KeyboardReader` は
   固定割当の最小実装で、実プロジェクトは `InputSystemReader`（.inputactions 駆動）を使います
-- **ID 規約**: 0 = None 予約。基盤予約 1〜99 / アプリ独自 100 以降
-  （ステージは 201〜帯、独自 ActionId は 32〜63 帯）。型が違っても ID は全体で一意です
+- **ID 規約**（種類ごとに違うので注意）:
+  - `ActionId`（入力ボタン）: 0=None / 1〜10 基盤予約 / **アプリ独自ボタンは 32〜63 帯**（64 以上はビットマスクに載らない）
+  - `PhaseId` / `ScreenId` / `StageId` / `CharacterId`: 0=None 予約のみで、1 以上の値割り当てはアプリの裁量
+    （デモは Phase 1〜3、Screen 1〜2、Stage 201〜204、Character 1〜2）
+  - **型をまたぐ ID 一意性**はマスターデータ定義 ID 内の規約です（`MasterDataSet.ValidateGlobalIdUniqueness`。
+    `EntityRegistry` の ID 空間が1本なので、ユニット 1〜99 / ステージ 201〜 のように帯で分けます → [07_Data.md](07_Data.md)）
 - **三大規約**: 「状態は Tick、艶は Update」「方針は App」「命令の処理者は1基盤」——
   各章の「仕組み」節でその章に関わる形で都度説明します

@@ -99,7 +99,9 @@ MessageHub はこれらを「型で区別されたメッセージ＋ランタイ
 - **Console**: Awake の時点で「撃破: 7」「セーブ実行」の2行。最初の LateUpdate の `Pump()` で「撃破: 8」が出ます
   （`PublishDeferred` した分は Pump まで配達されません）
 - **Message Tracer**: `[X.XXs] Hub0  EnemyDefeated  → 1件配達` `[X.XXs] Hub0  SaveGameCommand  → 1件配達` のような行が
-  新しい順に並び、上部の型別頻度に `EnemyDefeated ×2   SaveGameCommand ×1` と出ます
+  新しい順に並び、上部の型別頻度に `EnemyDefeated ×2   SaveGameCommand ×1` と出ます。
+  **ただしトレーサの Hub 接続は毎秒の再走査なので、Awake / 最初の Pump で終わる上記3件は間に合わず1件も出ないことがあります。**
+  確実に観測するには発行をキー入力に移してください（例: `Update` で `if (UnityEngine.InputSystem.Keyboard.current.spaceKey.wasPressedThisFrame) _hub.Publish(new EnemyDefeated(9));`）
 - **Hierarchy**: 変化なし（Hub はコンポーネントを生成しません）
 
 ### メッセージトレーサの画面

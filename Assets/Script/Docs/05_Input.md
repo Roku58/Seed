@@ -216,7 +216,7 @@ public InputSystemReader(
 - **症状**: 独自ボタンが常に無反応 → **原因**: `ActionId` が範囲外（0 や 64 以上はビットに載らない） → **対処**: 独自ボタンは 32〜63 で発番。`InputSystemReader.Bind` に範囲外IDを渡した場合は警告「`[Seed.Input] Action#N はボタンとして扱えません（1〜63 のIDのみ）...`」が出ます
 - **症状**: `InputSystemReader` で特定のアクションだけ無反応 → **原因**: アクション名の綴り違い、または `Enable()` の呼び忘れ → **対処**: Console に1回だけ出る警告「`[Seed.Input] アクション '名前' が アセット名 に見つかりません。この入力は常に無反応として扱います。`」を確認（毎フレームは出ません）。警告が無いのに無反応なら `Enable()` を確認
 - **症状**: キーボードが全く効かない → **原因**: `Keyboard.current` が null（Input System が無効な環境） → **対処**: Sample_KeyboardReader は null 時に `InputSnapshot.Empty` を返す仕様。Package Manager で Input System の導入状態を確認
-- **症状**: `UnityEngine.Input` を使ったコードが実行時例外になる → **原因**: このプロジェクトの activeInputHandler は「Input System Package 専用」 → **対処**: 旧 Input は直叩きせず、読み取りは `IInputReader` 実装（実質 `InputSystemReader`）に集約する
+- **症状**: 入力の読み取り経路が二重化して、どこで何を読んでいるか追えなくなる → **原因**: 本プロジェクトの Active Input Handling は **Both**（`activeInputHandler: 2`）なので旧 `UnityEngine.Input` も動いてしまう（実際に `Sample_ActionBattleInteractiveRunner` は旧 Input を使っています） → **対処**: 動くこと自体は問題ないが、ゲーム本体の読み取りは `IInputReader` 実装（実質 `InputSystemReader`）へ集約する規約。旧 Input の直叩きはサンプル限定にする
 - **症状**: Dispose 後も Read され続けて不安 → **対処不要**: Dispose 後の `Read()` は `InputSnapshot.Empty` を返す安全設計（二重 Dispose も無害）
 
 ## 7. 増やす・拡張する

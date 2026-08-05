@@ -8,10 +8,10 @@ namespace Seed.Input
     /// <summary>
     /// Unity Input System Package（<see cref="InputActionAsset"/>）から入力を読む <see cref="IInputReader"/> 実装。
     ///
-    /// このプロジェクトは ProjectSettings の activeInputHandler が「Input System Package 専用」なので、
-    /// 旧 UnityEngine.Input を直叩きすると実行時に例外になる。デバイス読み取りを本クラス1点に集約し、
+    /// このプロジェクトの activeInputHandler は「Both」（旧 UnityEngine.Input も動く）だが、
+    /// 読む場所が散ると「どのAPIで読んでいるか」を追えなくなる。デバイス読み取りを本クラス1点に集約し、
     /// 他のコードは <see cref="IInputReader"/> / <see cref="InputRouter"/> しか触らない形にすることで、
-    /// 「どのAPIで読むか」の判断をアプリ全体から追い出している。
+    /// 「どのAPIで読むか」の判断をアプリ全体から追い出している（旧 Input の直叩きはサンプル限定）。
     ///
     /// 設計上の約束:
     /// - 対応表は「<see cref="ActionId"/> ↔ アクション名」だけ。どのアクションが攻撃かはアプリが決める

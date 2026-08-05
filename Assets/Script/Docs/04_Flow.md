@@ -108,7 +108,7 @@
    `ChangePhaseCommand(Battle, StageId.Value)` の発行にすぎません
 
 Console には既定では何も出力されません。遷移を目で追いたい場合は、`PhaseChanged` を購読して
-`Debug.Log` する数行を Runner に足すのが手軽です（4章の実戦例の後に載せます）。
+`Debug.Log` する数行を Runner に足すのが手軽です（本章 4節の実戦例の後に載せます）。
 
 ## 4. コードで使う
 
@@ -347,7 +347,7 @@ public sealed class DungeonPhase : GamePhase
   ホームのメニューに `ChangePhaseCommand(Battle, StageId.Value)` の分岐を足す（[07_Data.md](07_Data.md)）
 - **ステージをシーンアセット化する**: フェーズの `CreateLoadOperation(payload)` を override して
   `ISceneLoader.LoadScene(sceneName, additive)` の戻り値を返す。本番実装は `UnitySceneLoader`、
-  純C#テストでは偽実装を注入する（4章の `DungeonPhase` 例）
+  純C#テストでは偽実装を注入する（本章 4節の `DungeonPhase` 例）
 - **ローディング画面**: UI が `flow.IsTransitioning` と `flow.LoadProgress` を毎フレーム読む
 - **BGM 切替・解析ログ**: `PhaseChanged` 通知（Previous / Current / Payload）を購読する。
   通知は新フェーズの `OnEnter` 完了後に飛ぶので、購読側は「もう入場済み」を前提にしてよい

@@ -76,7 +76,7 @@ MotionRig（LateUpdate・登録順に適用）
 1. Unity で任意のシーンを開き、Hierarchy で空の GameObject を作成
 2. Add Component で `Sample_GameFlowRunner` を追加（カメラ・ライトは無ければ自動生成）
 3. Play を押す。ホーム画面（テキストパネル）が出る
-4. **[1] キー**で「出撃: ステージ1」→ 戦闘フェーズへ。プレイヤー＝青カプセル、敵＝灰キューブが現れる
+4. **[1] キー**で「出撃: 草原（敵の攻撃: ゆっくり）」→ 戦闘フェーズへ。プレイヤー＝青カプセル、敵＝灰キューブが現れる
 5. Hierarchy のプレイヤー配下を確認: `Head`（HeadCube＋黒い Nose）、`Shoulder → Elbow → Hand` の小キューブ列、`Tail0 〜 Tail3` のポニーテールが生成されている
 6. **[W][A][S][D]** で移動・旋回しながら観察:
    - **注視**: 頭キューブ（黒い鼻つき）が常に敵の胸元（敵位置＋上 0.5m）を向く。最大回頭角 70 度。敵死亡で解除されアニメ姿勢へ戻る
@@ -130,7 +130,7 @@ var motions = new MotionSet()
     .Add(MotionClipId.Locomotion, runClip)
     .Add(MotionClipId.Attack, slashClip, fadeSeconds: 0.08f, speed: 1f, loop: false,
         new MotionEvent(300, AvatarEventId.HitboxBegin),   // クリップ 30% 地点で判定開始
-        new MotionEvent(600, AvatarEventId.HitboxEnd));    // 60% 地点で終了（‰は昇順で登録）
+        new MotionEvent(600, AvatarEventId.HitboxEnd));    // 60% 地点で終了（‰は昇順で登録＝同一Tickの発火順を明快にするため）
 
 var avatar = model.AddComponent<RiggedAvatar>();
 avatar.Configure(animator, motions,
@@ -229,7 +229,8 @@ arm.SetTarget(enemyPosition + Vector3.up * 0.6f);
 
 - **症状**: 行動が遷移してもモデルが無反応 → **原因**: `Configure` 未呼び出し（OnBehaviorChanged が何もしない） → **対処**: `AddComponent<RiggedAvatar>()` の直後に一度だけ `Configure(animator, motionSet)` を呼ぶ
 - **症状**: 特定のモーションだけ再生されない → **原因**: MotionSet 未登録の MotionClipId は**静かに何もしない**設計（例外にせずプリミティブ演出へ委ねる） → **対処**: `MotionSet.Add` の登録漏れ、または番号ズレ（`MotionBindings.Bind` が必要か）を確認
-- **症状**: 当たり判定イベントが発火しない → **原因**: 上半身レイヤーで再生している（イベントは全身レイヤーのみ）、またはイベントを‰昇順で登録していない → **対処**: 判定つきモーションは `Play`（全身）で流し、`MotionEvent` は昇順で渡す
+- **症状**: 当たり判定イベントが発火しない → **原因**: 上半身レイヤーで再生している（イベントは全身レイヤーのみ発火）、`MotionSet.Add` の `events` 引数に渡し忘れている、または `MotionSet` 自体が未登録 → **対処**: 判定つきモーションは `Play`（全身）で流し、`events` の登録を確認する
+- **症状**: 同一 Tick に入った複数イベントの発火順が意図と違う → **原因**: `MotionEvent` は配列順に発火する（‰順ではない） → **対処**: `MotionSet.Add` へ渡す `MotionEvent` を‰昇順で並べる（並び順が発火順。昇順でなくても発火自体は起きます）
 - **症状**: 髪が垂れ切る・髪型が崩れていく → **原因**: 揺れボーン列をアニメクリップで焼いている（素姿勢の復元と喧嘩する） → **対処**: 揺れボーンをクリップのカーブから外す。素姿勢は装着時のローカル回転で定義される
 - **症状**: `ArgumentException: 揺れものリグには2本以上のボーン列が必要です。` → **原因**: SpringBoneRig にボーン 1 本だけ渡した → **対処**: 根本→先端の 2 本以上の列を渡す（1 本では節が作れない）
 - **症状**: Weight=0 にしたのに揺れものの計算が走っている → **原因**: 仕様。IK 系の Weight=0 は「何もしない」だが、SpringBoneRig は**シミュレーションだけ進めて書き戻しを止める**（再開時に不連続にならないため） → **対処**: そのままでよい。負荷が問題なら MotionRig への登録自体を外す

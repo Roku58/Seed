@@ -91,7 +91,7 @@ CharactersManager（全体管理: 陣営を登録順に Tick ＋ リアクショ
 2. Hierarchy で右クリック → Create Empty で空の GameObject を作成
 3. Inspector の Add Component で `Sample_GameFlowRunner` を追加
 4. Play を押す → ホーム画面（テキストパネル）が表示されます
-5. **[1]** キーで「出撃: ステージ1」→ 戦闘フェーズへ。Hierarchy にプレイヤー（青カプセル）と敵（灰キューブ）が現れます
+5. **[1]** キーで「出撃: 草原（敵の攻撃: ゆっくり）」（=Stage1）→ 戦闘フェーズへ。Hierarchy にプレイヤー（青カプセル）と敵（灰キューブ）が現れます
 6. **[W][A][S][D]** で移動——`ManualLogic.SetMove` → `LocomotionBehavior` が姿勢を進めています
 7. **[1]** で攻撃——前方へ約0.3秒踏み込む簡易演出（`Avatar3D`）。連打しても2発目がすぐ出ないのは正常です（後述）
 8. **[G]** を押している間ガード——カプセルがシアンに着色されます
@@ -126,10 +126,14 @@ players.Add(new PlayerController(agent, manual));    // Logic と Agent を結�
 
 // --- 毎フレーム ---
 manual.SetMove(new Vector3(0f, 0f, 1f));   // 前進の意図（毎フレーム上書き）
-manual.RequestAction(BehaviorKey.Attack);  // 離散行動を1回ぶん予約（後勝ち）
 characters.Tick(Time.deltaTime);           // 全陣営を決定的に駆動
-// → agent.ActiveActor.Pose.Position が前進し、
-//    agent.ActiveActor.CurrentKey が Attack → 0.4秒後に Idle と遷移する
+// → CurrentKey が Locomotion になり agent.ActiveActor.Pose.Position が前進する
+
+// --- 攻撃したいフレームだけ（1回ぶん予約・後勝ち） ---
+manual.RequestAction(BehaviorKey.Attack);
+// → CurrentKey が Attack（0.4秒の拘束。位置を動かすのは Locomotion だけなのでこの間は前進しない）
+//    → 完了後は移動意図が残っているので Locomotion へ戻り、再び前進する
+//    （SetMove を呼んでいなければ Idle へ戻る）
 ```
 
 Hub 接続（被弾リアクションの受信・`ICharacterQuery` の貸し出し）は合成ルートで1回、
