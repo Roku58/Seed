@@ -428,6 +428,177 @@ namespace Seed.Motion.Tests
             }
         }
 
+        // ================================================================
+        // 足IK（階段・坂・段差の接地）
+        // ================================================================
+
+        /// <summary>設定を作る（テストは追従を速くして収束を待つ手間を省く）。</summary>
+        private static FootIkSettings FootSettings()
+        {
+            return new FootIkSettings
+            {
+                FootHeight = 0.1f,
+                MaxStepHeight = 0.45f,
+                MaxSlopeDegrees = 50f,
+                MaxHipDrop = 0.35f,
+                FootFollowSpeed = 100f,
+                HipFollowSpeed = 100f,
+                FootRotationSpeed = 3600f,
+                WeightFadeSpeed = 100f,
+            };
+        }
+
+        /// <summary>水平な地面に立つ足のサンプルを作る（足の高さは既に合っている）。</summary>
+        private static FootSample OnFlatGround(float x, float groundY)
+        {
+            return new FootSample(
+                new Vector3(x, groundY + 0.1f, 0f), Quaternion.identity,
+                true, new Vector3(x, groundY, 0f), Vector3.up);
+        }
+
+        /// <summary>平地でぴったり合っているなら、腰も足も動かさない。</summary>
+        [Test]
+        public void FootIk_FlatGround_LeavesPoseUntouched()
+        {
+            var solver = new FootPlacementSolver(FootSettings());
+            var solution = solver.Solve(0.016f,
+                OnFlatGround(-0.2f, 0f), OnFlatGround(0.2f, 0f), Vector3.up);
+
+            Assert.AreEqual(0f, solution.HipOffset, 0.001f, "腰は沈まない");
+            Assert.AreEqual(0.1f, solution.Left.Position.y, 0.001f, "左足は足首の高さのまま");
+            Assert.AreEqual(1f, solution.Left.Weight, 0.001f, "接地しているので全適用");
+        }
+
+        /// <summary>片足の地面が低いと、その足へ合わせて腰が沈む（段差・階段の下り）。</summary>
+        [Test]
+        public void FootIk_LowerGroundOnOneFoot_DropsHips()
+        {
+            var solver = new FootPlacementSolver(FootSettings());
+            // 右足だけ 0.2m 低い段の上（アニメ位置は平地基準のまま）
+            var right = new FootSample(
+                new Vector3(0.2f, 0.1f, 0f), Quaternion.identity,
+                true, new Vector3(0.2f, -0.2f, 0f), Vector3.up);
+            var solution = solver.Solve(0.016f, OnFlatGround(-0.2f, 0f), right, Vector3.up);
+
+            Assert.AreEqual(-0.2f, solution.HipOffset, 0.001f, "低い側に合わせて腰が沈む");
+            Assert.AreEqual(-0.1f, solution.Right.Position.y, 0.001f, "右足は低い地面へ届く");
+            Assert.AreEqual(0.1f, solution.Left.Position.y, 0.001f, "左足は元の高さを保つ");
+        }
+
+        /// <summary>段差上限を超える高低差は足場とみなさず、IKを切る（脚が伸び切らない）。</summary>
+        [Test]
+        public void FootIk_StepTooHigh_DisablesIk()
+        {
+            var solver = new FootPlacementSolver(FootSettings());
+            // 1m 高い蹴上げ（MaxStepHeight=0.45 を超える）
+            var right = new FootSample(
+                new Vector3(0.2f, 0.1f, 0f), Quaternion.identity,
+                true, new Vector3(0.2f, 1.0f, 0f), Vector3.up);
+            var solution = solver.Solve(0.016f, OnFlatGround(-0.2f, 0f), right, Vector3.up);
+
+            Assert.AreEqual(0f, solution.Right.Weight, 0.001f, "足場ではないので適用しない");
+            Assert.AreEqual(0.1f, solution.Right.Position.y, 0.001f, "アニメ位置のまま");
+            Assert.AreEqual(0f, solution.HipOffset, 0.001f, "腰も動かさない");
+        }
+
+        /// <summary>坂では足裏が法線へ沿う。</summary>
+        [Test]
+        public void FootIk_Slope_AlignsFootToNormal()
+        {
+            var solver = new FootPlacementSolver(FootSettings());
+            var normal = Quaternion.Euler(0f, 0f, -30f) * Vector3.up; // 30度の坂
+            var sample = new FootSample(
+                new Vector3(0f, 0.1f, 0f), Quaternion.identity,
+                true, Vector3.zero, normal);
+            var solution = solver.Solve(0.016f, sample, sample, Vector3.up);
+
+            var footUp = solution.Left.Rotation * Vector3.up;
+            Assert.Less(Vector3.Angle(footUp, normal), 1f, "足の上方向が法線へ向く");
+        }
+
+        /// <summary>急傾斜（壁）では足裏を貼り付けない。</summary>
+        [Test]
+        public void FootIk_SteepWall_KeepsAnimatedRotation()
+        {
+            var solver = new FootPlacementSolver(FootSettings());
+            var normal = Quaternion.Euler(0f, 0f, -80f) * Vector3.up; // 80度＝MaxSlope 50 超え
+            var sample = new FootSample(
+                new Vector3(0f, 0.1f, 0f), Quaternion.identity,
+                true, Vector3.zero, normal);
+            var solution = solver.Solve(0.016f, sample, sample, Vector3.up);
+
+            Assert.AreEqual(0f, Quaternion.Angle(Quaternion.identity, solution.Left.Rotation), 1f,
+                "アニメの回転を保つ（壁に足裏を貼らない）");
+        }
+
+        /// <summary>腰の沈み込みは上限でクランプされる（座り込まない）。</summary>
+        [Test]
+        public void FootIk_HipDrop_IsClamped()
+        {
+            var settings = FootSettings();
+            settings.MaxStepHeight = 1f; // 段差判定では弾かれないようにする
+            var solver = new FootPlacementSolver(settings);
+            var deep = new FootSample(
+                new Vector3(0.2f, 0.1f, 0f), Quaternion.identity,
+                true, new Vector3(0.2f, -0.8f, 0f), Vector3.up);
+            var solution = solver.Solve(0.016f, OnFlatGround(-0.2f, 0f), deep, Vector3.up);
+
+            Assert.AreEqual(-0.35f, solution.HipOffset, 0.001f, "MaxHipDrop でクランプ");
+        }
+
+        /// <summary>追従は速度制限つき（段差をまたぐ瞬間に足が飛ばない）。</summary>
+        [Test]
+        public void FootIk_Following_IsRateLimited()
+        {
+            var settings = FootSettings();
+            settings.FootFollowSpeed = 1f; // 1m/s
+            settings.HipFollowSpeed = 1f;
+            var solver = new FootPlacementSolver(settings);
+            var lowered = new FootSample(
+                new Vector3(0f, 0.1f, 0f), Quaternion.identity,
+                true, new Vector3(0f, -0.4f, 0f), Vector3.up);
+
+            solver.Solve(0.1f, OnFlatGround(0f, 0f), OnFlatGround(0f, 0f), Vector3.up); // 初期化
+            var solution = solver.Solve(0.1f, lowered, lowered, Vector3.up);
+
+            Assert.AreEqual(0f, solution.Left.Position.y, 0.001f,
+                "0.1秒×1m/s＝0.1m だけ動く（目標 -0.3m には届かない）");
+        }
+
+        /// <summary>Reset 後の初回 Solve は平滑化せず即座に合わせる（ワープ対策）。</summary>
+        [Test]
+        public void FootIk_Reset_SnapsImmediately()
+        {
+            var settings = FootSettings();
+            settings.FootFollowSpeed = 1f;
+            settings.HipFollowSpeed = 1f;
+            var solver = new FootPlacementSolver(settings);
+            var lowered = new FootSample(
+                new Vector3(0f, 0.1f, 0f), Quaternion.identity,
+                true, new Vector3(0f, -0.3f, 0f), Vector3.up);
+
+            solver.Solve(0.016f, OnFlatGround(0f, 0f), OnFlatGround(0f, 0f), Vector3.up);
+            solver.Reset();
+            var solution = solver.Solve(0.016f, lowered, lowered, Vector3.up);
+
+            Assert.AreEqual(-0.2f, solution.Left.Position.y, 0.001f, "即座に地面へ合う");
+            Assert.AreEqual(-0.3f, solution.HipOffset, 0.001f, "腰も即座に沈む");
+        }
+
+        /// <summary>空中（地面なし）では適用率が0へフェードする。</summary>
+        [Test]
+        public void FootIk_Airborne_FadesOut()
+        {
+            var solver = new FootPlacementSolver(FootSettings());
+            solver.Solve(0.016f, OnFlatGround(0f, 0f), OnFlatGround(0f, 0f), Vector3.up);
+
+            var air = FootSample.Airborne(new Vector3(0f, 2f, 0f), Quaternion.identity);
+            var solution = solver.Solve(0.1f, air, air, Vector3.up);
+
+            Assert.AreEqual(0f, solution.Left.Weight, 0.001f, "接地なしは適用0");
+            Assert.AreEqual(0f, solution.HipOffset, 0.001f, "腰も戻る");
+        }
+
         /// <summary>Reset: ワープ後の追従リセットで即座にアニメ姿勢と一致する。</summary>
         [Test]
         public void Spring_Reset_SnapsToAnimatedPose()

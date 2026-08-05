@@ -104,3 +104,6 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+# Unity のパッケージ依存はリポジトリで固定する（グローバル設定の "Packages" 除外を打ち消す）
+!/Packages/
