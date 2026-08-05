@@ -13,5 +13,8 @@ namespace Seed.App
 
         /// <summary>メニュー5番（[5]キー。市街へ出撃）。</summary>
         public static readonly ActionId Slot5 = new ActionId(33);
+
+        /// <summary>[C] 視点切替（TPS→FPS→俯瞰の巡回。カメラ基盤への命令に使う）。</summary>
+        public static readonly ActionId CycleView = new ActionId(34);
     }
 }
