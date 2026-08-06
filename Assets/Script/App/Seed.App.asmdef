@@ -17,7 +17,11 @@
         "Seed.Core",
         "Seed.Core.Presenter",
         "Seed.Core.Samples",
-        "Unity.InputSystem"
+        "Unity.InputSystem",
+        "Seed.Cameras",
+        "Seed.Pooling",
+        "Seed.World",
+        "Unity.Cinemachine"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

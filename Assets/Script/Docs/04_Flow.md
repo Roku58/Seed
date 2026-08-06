@@ -364,6 +364,6 @@ public sealed class DungeonPhase : GamePhase
 - `Assets/Script/App/Samples/Sample_PhaseIds.cs` / `Sample_HomePhase.cs` / `Sample_BattlePhase.cs` / `Sample_ShopPhase.cs` — アプリ側のフェーズ実装
 - テスト: `Assets/Script/Flow/Tests/Editor/GameFlowTests.cs` —
   「次 Tick で入場」「同一フェーズ再入で完全な Exit→Enter」「ロード完了まで Tick 停止」
-  「フェーズ Tick 中の要求は遅延」「未登録IDは例外」「Dispose で退場」を純C#で検証（[14_Tests.md](14_Tests.md)）
+  「フェーズ Tick 中の要求は遅延」「未登録IDは例外」「Dispose で退場」を純C#で検証（[17_Tests.md](17_Tests.md)）
 
 [← 前: 03_Clock](03_Clock.md) | [索引](README.md) | [次: 05_Input →](05_Input.md)

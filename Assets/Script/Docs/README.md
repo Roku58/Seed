@@ -49,7 +49,7 @@ Seed の各サンプル・各基盤を「どう起動し、どう使い、どう
 | 章 | ガイド | 読むと分かること |
 |---|---|---|
 | 08 | [08_Character.md](08_Character.md) | アクター制御（Agent/Actor/Behavior/Avatar） |
-| 09 | [09_Motion.md](09_Motion.md) | アニメ再生・注視・IK・揺れもの |
+| 09 | [09_Motion.md](09_Motion.md) | アニメ再生・注視・IK（階段や坂の足IK）・揺れもの |
 | 10 | [10_AI.md](10_AI.md) | キャラAI＋メタAI。自動操縦の仕組み |
 
 ### 第5部 — ワールドと最深部
@@ -60,11 +60,19 @@ Seed の各サンプル・各基盤を「どう起動し、どう使い、どう
 | 12 | [12_GameCore.md](12_GameCore.md) | 決定的ロジックと記録/リプレイ（Seed の心臓部） |
 | 13 | [13_Persistence.md](13_Persistence.md) | セーブ/ロード（リプレイの保存とも接続） |
 
-### 第6部 — 品質
+### 第6部 — 演出と規模
 
 | 章 | ガイド | 読むと分かること |
 |---|---|---|
-| 14 | [14_Tests.md](14_Tests.md) | 全215件のテストの実行方法と「仕様書として読む」案内 |
+| 14 | [14_Cameras.md](14_Cameras.md) | カメラ制御（FPS/TPS 切替・複数カメラの管理と合成。Cinemachine 駆動） |
+| 15 | [15_Pooling.md](15_Pooling.md) | オブジェクトプール（生成/破棄のコストと GC を抑える） |
+| 16 | [16_World.md](16_World.md) | 原点回帰（広大なフィールドでの座標精度の維持） |
+
+### 第7部 — 品質
+
+| 章 | ガイド | 読むと分かること |
+|---|---|---|
+| 17 | [17_Tests.md](17_Tests.md) | 全テストの実行方法と「仕様書として読む」案内 |
 
 ## サンプル一覧（シーンに置く MonoBehaviour）
 
@@ -87,7 +95,8 @@ Seed の各サンプル・各基盤を「どう起動し、どう使い、どう
 | `Seed/Message Tracer` | メッセージ発行の観測ウィンドウ（直近256件・型別頻度） | [02](02_Hub.md) |
 | `Seed/Master Data Browser` | 全定義アセットの一覧・検証・空きID提案 | [07](07_Data.md) |
 | `Seed/Master Data Validate` | ウィンドウ無しの一括検証（Console 出力） | [07](07_Data.md) |
-| `Window > General > Test Runner` | 全 EditMode テスト | [14](14_Tests.md) |
+| `Seed/Stage Palette` | 生成ステージのプレハブ↔役割の紐付け・検証 | [11](11_StageGen.md) |
+| `Window > General > Test Runner` | 全 EditMode テスト | [17](17_Tests.md) |
 
 ## 全章共通の前提・規約
 
