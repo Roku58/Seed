@@ -22,7 +22,10 @@ using Seed.Flow;
 using Seed.Hub;
 using Seed.Hub.Contracts;
 using Seed.Input;
+using Seed.Cameras;
 using Seed.Motion;
+using Seed.Pooling;
+using Seed.World;
 using Seed.StageGen;
 using Seed.UI;
 using UnityEngine;
@@ -104,6 +107,34 @@ namespace Seed.App
 
         /// <summary>IKデモ: プレイヤーの左腕2ボーンIK（近づくと敵へ手を伸ばす）。</summary>
         private TwoBoneIkRig _playerArm;
+
+        /// <summary>足IKデモ: プレイヤーの両足（階段・坂で接地させる）。</summary>
+        private FootIkRig _playerFeet;
+
+        /// <summary>FPS視点の追従先（頭）。</summary>
+        private Transform _playerHead;
+
+        /// <summary>TPS視点の追従先（腰の高さのダミー）。</summary>
+        private Transform _cameraPivot;
+
+        /// <summary>視点の采配（Cinemachine のカメラを視点IDで指名する）。</summary>
+        private CameraDirector _cameraDirector;
+
+        /// <summary>[C] の巡回位置。</summary>
+        private int _viewpointIndex;
+
+        /// <summary>原点回帰（広いフィールドでの座標精度の維持）。</summary>
+        private OriginShiftSystem _originShift;
+
+        /// <summary>オブジェクトプールの台帳（ヒットエフェクトの使い回し）。</summary>
+        private PoolRegistry _pools;
+
+        /// <summary>ヒットエフェクトの複製元（非表示のテンプレート）。</summary>
+        private GameObject _hitEffectPrefab;
+
+        /// <summary>表示中のエフェクト（残り時間つき。0 になったらプールへ返す）。</summary>
+        private readonly List<(GameObject Instance, float Remain)> _liveEffects =
+            new List<(GameObject, float)>();
 
         /// <summary>フィールドのトリガー1件（出口・ショップ・宝箱。純C#の距離判定で発火）。</summary>
         private sealed class FieldTrigger
@@ -206,6 +237,9 @@ namespace Seed.App
             // 5. 舞台とユニットと画面（すべて _stageRoot の下＝OnExit で丸ごと消える）
             _stageRoot = new GameObject($"Stage_{stage.DebugName}");
             BuildStage(stage);
+            BuildCameras();
+            BuildPools();
+            BuildOriginShift();
             BuildScreens(uiSystem, stage);
             _hub.PublishCommand(new ShowScreenCommand(Sample_ScreenIds.BattleHud));
 
@@ -218,7 +252,9 @@ namespace Seed.App
             _pipeline.Add(TickPhase.Drain, _ => _bridge.Drain());
             _pipeline.Add(TickPhase.Drain, _ => CheckBattleEnd());
             _pipeline.Add(TickPhase.Drain, _ => CheckTriggers());
+            _pipeline.Add(TickPhase.Simulation, _ => _originShift.Tick());
             _pipeline.Add(TickPhase.Drain, _ => UpdateDemoRig());
+            _pipeline.Add(TickPhase.Drain, UpdateEffects);
             _pipeline.Add(TickPhase.Drain, _ => uiSystem.Tick(_clock.UnscaledDelta));
 
             // 被弾の瞬間だけ世界を止める（ヒットストップ）——時間基盤への命令1発で全基盤に効く
@@ -226,6 +262,7 @@ namespace Seed.App
             _hub.Subscribe<CharacterDamaged>(message =>
             {
                 _hub.PublishCommand(new HitStopCommand(0.06f));
+                SpawnHitEffect(message.Target);
                 if (message.Target.Equals(_playerId))
                 {
                     // メタAIの手心の入力（プレイヤーが弱るほど攻撃間隔が延びる）
@@ -259,6 +296,12 @@ namespace Seed.App
         public override void OnExit()
         {
             _triggers.Clear();
+            _liveEffects.Clear();
+            _pools?.Clear();
+            _pools = null;
+            _playerFeet = null;
+            _cameraDirector = null;
+            _originShift = null;
             _scope?.Dispose();
             _characters?.Clear();
             if (_stageRoot != null)
@@ -286,6 +329,17 @@ namespace Seed.App
         private void HandlePlayerInput(float deltaTime)
         {
             var manual = _playerController.Manual;
+
+            // [C] 視点切替（TPS→FPS→俯瞰の巡回）。カメラ基盤への命令1発で、
+            // 発行側は Cinemachine のカメラ構成を知らない
+            if (_input.WasPressedThisFrame(Sample_ActionIds.CycleView))
+            {
+                _viewpointIndex = (_viewpointIndex + 1) % 3;
+                var next = _viewpointIndex == 0 ? ViewpointId.ThirdPerson
+                    : _viewpointIndex == 1 ? ViewpointId.FirstPerson
+                    : ViewpointId.Overhead;
+                _hub.PublishCommand(new SetViewpointCommand(next, blendSeconds: 0.35f));
+            }
 
             // [O] 自動操縦の切替（プレイヤーとAIの制御共通化のデモ）
             if (_input.WasPressedThisFrame(ActionId.Jump))
@@ -375,10 +429,16 @@ namespace Seed.App
             ground.transform.localScale = new Vector3(stage.GroundScale, 1f, stage.GroundScale);
             RendererTint.Set(ground.GetComponent<Renderer>(), stage.GroundColor);
 
+            BuildTerrainFeatures();
+
             BuildPlayerUnit(_catalog.Get<Sample_UnitSpec>(_playerId.Value), new Vector3(0f, 1f, -3f),
                 attachBody: false);
             BuildEnemyUnit(_catalog.Get<Sample_UnitSpec>(_enemyId.Value), stage, new Vector3(0f, 1.5f, 2f),
                 attachBody: false);
+
+            // 段・坂を歩けるようにする（高さの解決は App の方針。足元の凹凸は足IKが吸収する）
+            _playerController.Agent.ActiveActor.MotionSolver =
+                new Sample_GroundSnapSolver(footToOrigin: 1f, maxStepHeight: 0.35f);
         }
 
         // ================================================================
@@ -674,9 +734,17 @@ namespace Seed.App
             }
             var root = avatar.transform;
 
+            // 腰（足IKが上下させる中心。頭・腕・脚はこの下に付けて一緒に沈む）
+            var hips = CreateJoint(root, "Hips", Vector3.zero);
+
+            // カメラの追従先（三人称。腰より少し上を狙うと画面が安定する）
+            _cameraPivot = new GameObject("CameraPivot").transform;
+            _cameraPivot.SetParent(root, false);
+            _cameraPivot.localPosition = new Vector3(0f, 1.1f, 0f);
+
             // 頭（注視デモ用の小キューブ。向きが分かるよう鼻をつける）
             var head = new GameObject("Head").transform;
-            head.SetParent(root, false);
+            head.SetParent(hips, false);
             head.localPosition = new Vector3(0f, 1.25f, 0f);
             var headCube = GameObject.CreatePrimitive(PrimitiveType.Cube);
             headCube.name = "HeadCube";
@@ -692,7 +760,7 @@ namespace Seed.App
             RendererTint.Set(nose.GetComponent<Renderer>(), Color.black);
 
             // 左腕（肩→肘→手 のプリミティブ関節チェーン）
-            var shoulder = CreateJoint(root, "Shoulder", new Vector3(0.45f, 0.7f, 0f));
+            var shoulder = CreateJoint(hips, "Shoulder", new Vector3(0.45f, 0.7f, 0f));
             var elbow = CreateJoint(shoulder, "Elbow", new Vector3(0f, -0.35f, 0f));
             var hand = CreateJoint(elbow, "Hand", new Vector3(0f, -0.35f, 0f));
 
@@ -709,14 +777,30 @@ namespace Seed.App
                 tailParams,
                 colliders: new[] { (head, 0.22f) });     // 頭へめり込まない
 
-            // リグ: 注視（頭のみ・最大70度）＋ 腕IK（肘は背中側へ曲がる）＋ 揺れもの
+            // 脚（股→膝→足→つま先。足IKが階段・坂へ接地させる）
+            var leftLeg = CreateLeg(hips, "Left", -0.14f);
+            var rightLeg = CreateLeg(hips, "Right", 0.14f);
+            var footSettings = new FootIkSettings
+            {
+                FootHeight = 0.07f,      // 足キューブの半分ぶん浮かせる
+                MaxStepHeight = 0.4f,    // 1段 0.18m の階段は合わせ、壁は無視する
+                MaxHipDrop = 0.3f,
+                FootFollowSpeed = 4f,
+                HipFollowSpeed = 2.5f,
+            };
+            _playerFeet = new FootIkRig(hips, leftLeg, rightLeg,
+                groundMask: ~0, settings: footSettings, castRange: 1f);
+            _playerHead = head;
+
+            // リグ: 注視（頭のみ・最大70度）＋ 腕IK（肘は背中側へ曲がる）＋ 足IK ＋ 揺れもの
             _playerLook = new LookAtRig((head, 1f, 70f));
             _playerArm = new TwoBoneIkRig(shoulder, elbow, hand,
                 poleHint: root.position - root.forward * 2f + Vector3.up);
             avatar.gameObject.AddComponent<MotionRig>()
                 .With(_playerLook)   // 1) 頭の向き
                 .With(_playerArm)    // 2) 腕IK
-                .With(tail);         // 3) 揺れは最後（注視で動いた頭に追従＝順序が意味を持つ）
+                .With(_playerFeet)   // 3) 足IK（腰を沈めるので揺れものより前）
+                .With(tail);         // 4) 揺れは最後（注視・腰の動きに追従＝順序が意味を持つ）
         }
 
         /// <summary>デモ用の関節（小キューブつきの Transform）を作る。</summary>
@@ -731,6 +815,233 @@ namespace Seed.App
             cube.transform.SetParent(joint, false);
             cube.transform.localScale = new Vector3(0.14f, 0.14f, 0.14f);
             return joint;
+        }
+
+        /// <summary>片脚ぶんの関節を作る（股→膝→足→つま先）。</summary>
+        private static FootIkRig.Leg CreateLeg(Transform hips, string side, float sideOffset)
+        {
+            var hip = CreateJoint(hips, side + "Hip", new Vector3(sideOffset, -0.05f, 0f));
+            var knee = CreateJoint(hip, side + "Knee", new Vector3(0f, -0.36f, 0f));
+            var foot = CreateJoint(knee, side + "Foot", new Vector3(0f, -0.36f, 0f));
+            var toe = CreateJoint(foot, side + "Toe", new Vector3(0f, -0.02f, 0.12f));
+            return new FootIkRig.Leg(hip, knee, foot, toe);
+        }
+
+        /// <summary>
+        /// 階段・坂・起伏を置く（足IKと地面吸着の実演用）。
+        /// 平らな床では足IKの働きが見えないため、高さの変化を意図的に作っている。
+        /// </summary>
+        private void BuildTerrainFeatures()
+        {
+            var features = new GameObject("Terrain").transform;
+            features.SetParent(_stageRoot.transform, false);
+
+            // 階段（8段 × 0.18m）: 各段は地面まで伸ばして隙間を作らない
+            const int stepCount = 8;
+            const float stepHeight = 0.18f;
+            const float stepDepth = 0.55f;
+            for (var i = 0; i < stepCount; i++)
+            {
+                var height = stepHeight * (i + 1);
+                CreateBlock(features, $"Step{i}",
+                    new Vector3(4.5f, height * 0.5f, -1f + i * stepDepth),
+                    new Vector3(3f, height, stepDepth),
+                    new Color(0.55f, 0.5f, 0.45f));
+            }
+            var topHeight = stepHeight * stepCount;
+            CreateBlock(features, "Landing",
+                new Vector3(4.5f, topHeight * 0.5f, -1f + stepCount * stepDepth + 1.25f),
+                new Vector3(3f, topHeight, 2.5f),
+                new Color(0.6f, 0.55f, 0.5f));
+
+            // 坂（12度）: 足裏が法線へ沿うのが見える
+            var slope = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            slope.name = "Slope";
+            slope.transform.SetParent(features, false);
+            slope.transform.localPosition = new Vector3(-4.5f, 0.35f, 0f);
+            slope.transform.localRotation = Quaternion.Euler(0f, 0f, 12f);
+            slope.transform.localScale = new Vector3(5.5f, 0.3f, 4.5f);
+            RendererTint.Set(slope.GetComponent<Renderer>(), new Color(0.5f, 0.52f, 0.45f));
+
+            // 起伏（片足だけ乗る低い段＝腰の沈み込みが分かる）
+            CreateBlock(features, "Bump0", new Vector3(-1.2f, 0.06f, 3.2f),
+                new Vector3(1.2f, 0.12f, 1.2f), new Color(0.48f, 0.5f, 0.42f));
+            CreateBlock(features, "Bump1", new Vector3(0.6f, 0.1f, 4.4f),
+                new Vector3(1.2f, 0.2f, 1.2f), new Color(0.5f, 0.48f, 0.4f));
+            CreateBlock(features, "Bump2", new Vector3(2.2f, 0.15f, 3.0f),
+                new Vector3(1.2f, 0.3f, 1.2f), new Color(0.52f, 0.46f, 0.4f));
+        }
+
+        /// <summary>色つきの箱を1つ置く（地形の部品）。</summary>
+        private static void CreateBlock(Transform parent, string name, Vector3 localPosition,
+            Vector3 scale, Color color)
+        {
+            var block = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            block.name = name;
+            block.transform.SetParent(parent, false);
+            block.transform.localPosition = localPosition;
+            block.transform.localScale = scale;
+            RendererTint.Set(block.GetComponent<Renderer>(), color);
+        }
+
+        /// <summary>
+        /// カメラを組む（Cinemachine の視点3種を視点IDで指名できるようにする）。
+        /// 「どう見えるか」は Cinemachine の部品が持ち、こちらは切替の入口だけを用意する。
+        /// </summary>
+        private void BuildCameras()
+        {
+            var mainCamera = Camera.main;
+            if (mainCamera == null || _cameraPivot == null)
+            {
+                return;
+            }
+            var rigRoot = new GameObject("CameraRigs").transform;
+            rigRoot.SetParent(_stageRoot.transform, false);
+            var brain = CameraRigBuilder.EnsureBrain(mainCamera, defaultBlendSeconds: 0.4f);
+
+            var thirdPerson = CameraRigBuilder.CreateThirdPerson("Viewpoint_TPS", rigRoot,
+                distance: 4.5f, shoulderSide: 0.5f, height: 1.2f);
+            var firstPerson = CameraRigBuilder.CreateFirstPerson("Viewpoint_FPS", rigRoot,
+                fieldOfView: 80f);
+            var overhead = CameraRigBuilder.CreateFixed("Viewpoint_Overhead",
+                new Vector3(0f, 13f, -9f), Vector3.zero, rigRoot);
+
+            _cameraDirector = rigRoot.gameObject.AddComponent<CameraDirector>();
+            _cameraDirector.Initialize(_hub, brain);
+            _cameraDirector
+                .Register(ViewpointId.ThirdPerson, thirdPerson)
+                .Register(ViewpointId.FirstPerson, firstPerson, followsTarget: false)
+                .Register(ViewpointId.Overhead, overhead, followsTarget: false);
+
+            // 三人称は腰のダミーを追う（一括差し替えの対象はこちらだけ）
+            _cameraDirector.SetTarget(_cameraPivot);
+
+            // 一人称は頭に固定する（首の動き＝注視リグの結果がそのまま画面になる）
+            var fpsTarget = firstPerson.Target;
+            fpsTarget.TrackingTarget = _playerHead;
+            firstPerson.Target = fpsTarget;
+
+            _viewpointIndex = 0;
+            _cameraDirector.SetBase(ViewpointId.ThirdPerson, blendSeconds: 0f);
+        }
+
+        /// <summary>
+        /// エフェクトのプールを用意する（被弾のたびに Instantiate/Destroy しない）。
+        /// 複製元は非表示のテンプレートで、プレハブ資産があればそれに差し替えるだけで済む。
+        /// </summary>
+        private void BuildPools()
+        {
+            var poolRoot = new GameObject("Pools").transform;
+            poolRoot.SetParent(_stageRoot.transform, false);
+            _pools = new PoolRegistry(poolRoot, defaultMaxRetained: 32);
+
+            _hitEffectPrefab = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            _hitEffectPrefab.name = "HitEffect";
+            Object.Destroy(_hitEffectPrefab.GetComponent<Collider>()); // 通行の妨げにしない
+            _hitEffectPrefab.transform.SetParent(poolRoot, false);
+            _hitEffectPrefab.transform.localScale = Vector3.one * 0.45f;
+            RendererTint.Set(_hitEffectPrefab.GetComponent<Renderer>(),
+                new Color(1f, 0.85f, 0.25f));
+            _hitEffectPrefab.SetActive(false);
+
+            _pools.Prewarm(_hitEffectPrefab, 6); // 戦闘前に確保して実行中の生成を避ける
+        }
+
+        /// <summary>
+        /// 原点回帰を用意する（広いフィールドでの座標精度の維持）。
+        /// 閾値はデモ用に歩いて届く距離にしてある（実際のゲームでは 1000m 単位）。
+        /// </summary>
+        private void BuildOriginShift()
+        {
+            var host = new GameObject("OriginShift").transform;
+            host.SetParent(_stageRoot.transform, false);
+            _originShift = host.gameObject.AddComponent<OriginShiftSystem>();
+
+            var focus = _playerController.Agent.ActiveActor.Avatar is Avatar3D avatar
+                ? avatar.transform
+                : null;
+            _originShift.Initialize(_hub, focus, threshold: 45f);
+            _originShift.AddRoot(_stageRoot.transform);  // 地形・カメラ・プールごと動かす
+            _originShift.AddHandler(new Sample_OriginFollower(this));
+        }
+
+        /// <summary>
+        /// 原点回帰への追従（App の方針実装）。
+        /// Transform を持つものは根をずらせば済むが、純C#側に持っている座標——
+        /// 演出座標（ActorPose）とトリガー位置——はここで自分で追従させる。
+        /// </summary>
+        private sealed class Sample_OriginFollower : IOriginShiftHandler
+        {
+            /// <summary>追従させる対象のフェーズ。</summary>
+            private readonly Sample_BattlePhase _phase;
+
+            /// <summary>Sample_OriginFollower を生成する。</summary>
+            public Sample_OriginFollower(Sample_BattlePhase phase)
+            {
+                _phase = phase;
+            }
+
+            /// <summary>世界がずれたので自前の座標も合わせる。</summary>
+            public void OnOriginShifted(Vector3 delta)
+            {
+                _phase.ShiftOwnCoordinates(delta);
+            }
+        }
+
+        /// <summary>純C#側に持っている座標を原点移動へ追従させる。</summary>
+        private void ShiftOwnCoordinates(Vector3 delta)
+        {
+            ShiftAgentPose(_playerId, delta);
+            ShiftAgentPose(_enemyId, delta);
+            for (var i = 0; i < _triggers.Count; i++)
+            {
+                _triggers[i].Position += delta;
+            }
+            // 足IKの時間追従は「前フレームからの差」で動くので、ワープ相当の移動では捨てる
+            _playerFeet?.ResetFollow();
+            Debug.Log($"[OriginShift] 世界を {delta} ずらした"
+                + $"（累積 {_originShift.Shifter.TotalOffset}）");
+        }
+
+        /// <summary>1体ぶんの演出座標をずらす（表示にも即座に反映する）。</summary>
+        private void ShiftAgentPose(CharacterId id, Vector3 delta)
+        {
+            if (!_characters.Registry.TryGet(id, out var agent))
+            {
+                return;
+            }
+            var pose = agent.ActiveActor.Pose;
+            pose.Position += delta;
+            agent.ActiveActor.Avatar.ApplyPose(pose.Position, pose.Rotation);
+        }
+
+        /// <summary>被弾位置にヒットエフェクトを出す（プールから借りる）。</summary>
+        private void SpawnHitEffect(CharacterId target)
+        {
+            if (_pools == null || !_characters.Registry.TryGet(target, out var agent))
+            {
+                return;
+            }
+            var position = agent.ActiveActor.Pose.Position + Vector3.up * 0.9f;
+            var effect = _pools.Rent(_hitEffectPrefab, position, Quaternion.identity);
+            _liveEffects.Add((effect, 0.35f));
+        }
+
+        /// <summary>エフェクトの寿命を進め、切れたものをプールへ返す。</summary>
+        private void UpdateEffects(float deltaTime)
+        {
+            for (var i = _liveEffects.Count - 1; i >= 0; i--)
+            {
+                var live = _liveEffects[i];
+                var remain = live.Remain - deltaTime;
+                if (remain <= 0f)
+                {
+                    _pools.Return(live.Instance);
+                    _liveEffects.RemoveAt(i);
+                    continue;
+                }
+                _liveEffects[i] = (live.Instance, remain);
+            }
         }
 
         /// <summary>
