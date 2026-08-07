@@ -32,12 +32,6 @@
       "dependencies": {},
       "hash": "9f80a327ae139203c1e48fa678f95cf45e878963"
     },
-    "com.harumak.unitydebugsheet": {
-      "version": "file:com.harumak.unitydebugsheet",
-      "depth": 0,
-      "source": "embedded",
-      "dependencies": {}
-    },
     "com.unity.addressables": {
       "version": "2.9.1",
       "depth": 0,
