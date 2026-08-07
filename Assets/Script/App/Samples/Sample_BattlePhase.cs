@@ -111,6 +111,69 @@ namespace Seed.App
         /// <summary>足IKデモ: プレイヤーの両足（階段・坂で接地させる）。</summary>
         private FootIkRig _playerFeet;
 
+        /// <summary>実モデル（UnityChan）。無い環境では null＝カプセルで代替。</summary>
+        private Sample_PlayerModel _playerModel;
+
+        /// <summary>プレイヤーの移動モーター（重力・ジャンプ・段差を一手に担う）。</summary>
+        private Sample_PlayerMotor _playerMotor;
+
+        /// <summary>カメラの水平角（度。マウスで回す）。</summary>
+        private float _cameraYaw;
+
+        /// <summary>カメラの縦角（度。見下ろし正）。</summary>
+        private float _cameraPitch;
+
+        /// <summary>走りクリップを流しているか（歩き⇄走りの往復を防ぐヒステリシス）。</summary>
+        private bool _runClipActive;
+
+        /// <summary>スムージング済みの移動方向（入力の角がそのまま体に出ないようにする）。</summary>
+        private Vector3 _moveDirection;
+
+        /// <summary>スムージング済みの移動強度 0〜1（加速・減速のなめらかさの源）。</summary>
+        private float _moveBlend;
+
+        /// <summary>スムージング済みの視点入力（マウスの粗い刻みを丸める）。</summary>
+        private Vector2 _lookSmoothed;
+
+        /// <summary>討伐成功したか（勝利ポーズの維持に使う）。</summary>
+        private bool _victory;
+
+        /// <summary>「物を拾う」インタラクション（台帳＋状態機械。腕IKの実演）。</summary>
+        private Sample_PickupInteraction _pickup;
+
+        /// <summary>プレイヤーの左手（拾ったアイテムの吸着先）。</summary>
+        private Transform _playerHandBone;
+
+        /// <summary>オーブの共有マテリアル（発光。OnExit で破棄する）。</summary>
+        private Material _pickupMaterial;
+
+        /// <summary>オーブの浮遊高さ（m。立ったまま左手が届く腰〜胸の高さ）。</summary>
+        private const float PickupOrbHeight = 0.85f;
+
+        /// <summary>オーブの直径スケール。</summary>
+        private const float PickupOrbScale = 0.22f;
+
+        /// <summary>オーブ浮遊アニメの経過時間（時間基盤のdt積算＝スロー・ポーズが効く）。</summary>
+        private float _pickupClock;
+
+        /// <summary>平滑済みの注視点（拾う⇄敵リーチの切替で首が跳ねないように）。</summary>
+        private Vector3 _lookPoint;
+
+        /// <summary>_lookPoint が有効か（無効なら次の目標へ即時一致）。</summary>
+        private bool _lookPointValid;
+
+        /// <summary>平滑済みの注視重み。</summary>
+        private float _lookWeightBlend;
+
+        /// <summary>平滑済みの腕IK目標。</summary>
+        private Vector3 _armPoint;
+
+        /// <summary>_armPoint が有効か。</summary>
+        private bool _armPointValid;
+
+        /// <summary>平滑済みの腕IK重み。</summary>
+        private float _armWeightBlend;
+
         /// <summary>FPS視点の追従先（頭）。</summary>
         private Transform _playerHead;
 
@@ -247,17 +310,32 @@ namespace Seed.App
             _pipeline = new TickPipeline();
             _pipeline.Add(TickPhase.Input, HandlePlayerInput);
             _pipeline.Add(TickPhase.Simulation, dt => _director.Tick(dt));
+            _pipeline.Add(TickPhase.Simulation, dt => _playerMotor?.PreTick(dt));
             _pipeline.Add(TickPhase.Simulation, dt => _characters.Tick(dt));
+            _pipeline.Add(TickPhase.Simulation, _ => ApplyIdleGravity());
+            _pipeline.Add(TickPhase.Simulation, dt => TickPickup(dt));
             _pipeline.Add(TickPhase.LogicTime, AdvanceLogicTime);
             _pipeline.Add(TickPhase.Drain, _ => _bridge.Drain());
             _pipeline.Add(TickPhase.Drain, _ => CheckBattleEnd());
             _pipeline.Add(TickPhase.Drain, _ => CheckTriggers());
             _pipeline.Add(TickPhase.Simulation, _ => _originShift.Tick());
+            _pipeline.Add(TickPhase.Drain, dt => AnimatePickups(dt));
+            _pipeline.Add(TickPhase.Drain, _ => UpdateCameraPivot());
             _pipeline.Add(TickPhase.Drain, _ => UpdateDemoRig());
             _pipeline.Add(TickPhase.Drain, UpdateEffects);
             _pipeline.Add(TickPhase.Drain, _ => uiSystem.Tick(_clock.UnscaledDelta));
 
             // 被弾の瞬間だけ世界を止める（ヒットストップ）——時間基盤への命令1発で全基盤に効く
+            // TPS 標準のマウス視点のため、戦闘中はカーソルをロックする（[B] 帰還で戻る）
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+            _moveDirection = Vector3.zero;
+            _moveBlend = 0f;
+            _lookSmoothed = Vector2.zero;
+            _runClipActive = false;
+            _victory = false;
+            ApplyAtmosphere();
+
             var battleSubscriptions = _scope.Own(new SubscriptionBag(1));
             _hub.Subscribe<CharacterDamaged>(message =>
             {
@@ -295,7 +373,24 @@ namespace Seed.App
         /// <summary>組み立ての逆順で片付け、舞台を丸ごと破棄する。</summary>
         public override void OnExit()
         {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            RenderSettings.fog = false;
             _triggers.Clear();
+            _playerModel = null;
+            _playerMotor = null;
+            _pickup?.Clear();
+            _pickup = null;
+            _playerHandBone = null;
+            _lookPointValid = false;
+            _armPointValid = false;
+            _lookWeightBlend = 0f;
+            _armWeightBlend = 0f;
+            if (_pickupMaterial != null)
+            {
+                Object.Destroy(_pickupMaterial);
+                _pickupMaterial = null;
+            }
             _liveEffects.Clear();
             _pools?.Clear();
             _pools = null;
@@ -341,8 +436,16 @@ namespace Seed.App
                 _hub.PublishCommand(new SetViewpointCommand(next, blendSeconds: 0.35f));
             }
 
+            // マウス視点（自動操縦中も有効＝観戦カメラとして回せる）。
+            // 生のマウスdeltaは刻みが粗いので軽く均す（フレームレート非依存の指数補間）
+            var look = _input.Look;
+            _lookSmoothed = Vector2.Lerp(_lookSmoothed, look,
+                1f - Mathf.Exp(-25f * deltaTime));
+            _cameraYaw += _lookSmoothed.x * 0.12f;
+            _cameraPitch = Mathf.Clamp(_cameraPitch - _lookSmoothed.y * 0.10f, -30f, 65f);
+
             // [O] 自動操縦の切替（プレイヤーとAIの制御共通化のデモ）
-            if (_input.WasPressedThisFrame(ActionId.Jump))
+            if (_input.WasPressedThisFrame(Sample_ActionIds.Autopilot))
             {
                 _isAutopilot = !_isAutopilot;
                 if (!_isAutopilot)
@@ -371,8 +474,39 @@ namespace Seed.App
                 return; // 物理キーの移動・攻撃・ガードは読まない（[T]は上で処理済み、[B][P]は Tick 側で有効）
             }
 
+            // 移動はカメラ相対（TPSの標準操作。W=カメラの向く先へ進む）。
+            // デジタル入力（0か1）を直結すると発進・停止・方向転換が角ばるため、
+            // **強度と向きを別々に補間**して体の動きへ渡す（Starter Assets と同じ骨子。
+            // LocomotionBehavior は意図の大きさ 0〜1 を速度スケールとして解釈する）
             var move = _input.Move;
-            manual.SetMove(new Vector3(move.x, 0f, move.y));
+            var hasInput = move.sqrMagnitude > 0.01f;
+            var targetBlend = !hasInput ? 0f
+                : _input.IsPressed(Sample_ActionIds.Walk) ? 0.45f : 1f; // [Shift]=歩き
+            _moveBlend = Mathf.Lerp(_moveBlend, targetBlend,
+                1f - Mathf.Exp(-8f * deltaTime));
+            if (hasInput)
+            {
+                var rawDirection = (Quaternion.Euler(0f, _cameraYaw, 0f)
+                    * new Vector3(move.x, 0f, move.y)).normalized;
+                // 停止からの入力は即その向き・移動中の切り返しはなめらかに曲がる
+                _moveDirection = _moveDirection.sqrMagnitude < 0.01f
+                    ? rawDirection
+                    : Vector3.Slerp(_moveDirection, rawDirection,
+                        1f - Mathf.Exp(-12f * deltaTime));
+            }
+            manual.SetMove(_moveBlend < 0.02f ? Vector3.zero : _moveDirection * _moveBlend);
+
+            // [Space] ジャンプ（接地中のみ。滞空クリップは UpdatePlayerAnimation が面倒を見る）
+            if (_input.WasPressedThisFrame(ActionId.Jump))
+            {
+                _playerMotor?.RequestJump();
+            }
+
+            // [2] 拾う——近くのオーブへ左手を伸ばす（腕IK＝TwoBoneIkRig の実演）
+            if (_input.WasPressedThisFrame(ActionId.Interact))
+            {
+                _pickup?.TryStart(_playerController.Agent.ActiveActor.Pose.Position);
+            }
 
             manual.SetGuard(_input.IsPressed(ActionId.Guard));
             if (_input.WasPressedThisFrame(ActionId.Guard) || _input.WasReleasedThisFrame(ActionId.Guard))
@@ -405,7 +539,13 @@ namespace Seed.App
                 return;
             }
             _isOver = true;
-            var result = _world.Monster.IsDead ? "討伐成功！" : "力尽きた…";
+            _victory = _world.Monster.IsDead;
+            // 決着でパイプラインは止まるが MotionRig の LateUpdate は動き続ける——
+            // 拾いかけの腕・縮みかけのオーブが画面に残らないよう即座に畳む
+            _pickup?.ForceFinish();
+            _playerArm?.ClearTarget();
+            _playerLook?.ClearTarget();
+            var result = _victory ? "討伐成功！" : "力尽きた…";
             _resultScreen.SetResult($"{result}   [B] ホームへ");
             // 画面遷移は方針クラスが CharacterDied → ShowScreenCommand(Result) で発行済み
         }
@@ -430,15 +570,14 @@ namespace Seed.App
             RendererTint.Set(ground.GetComponent<Renderer>(), stage.GroundColor);
 
             BuildTerrainFeatures();
+            BuildPickups();
 
             BuildPlayerUnit(_catalog.Get<Sample_UnitSpec>(_playerId.Value), new Vector3(0f, 1f, -3f),
                 attachBody: false);
             BuildEnemyUnit(_catalog.Get<Sample_UnitSpec>(_enemyId.Value), stage, new Vector3(0f, 1.5f, 2f),
                 attachBody: false);
 
-            // 段・坂を歩けるようにする（高さの解決は App の方針。足元の凹凸は足IKが吸収する）
-            _playerController.Agent.ActiveActor.MotionSolver =
-                new Sample_GroundSnapSolver(footToOrigin: 1f, maxStepHeight: 0.35f);
+            // 移動の解決（重力・段差・ジャンプ）は BuildPlayerUnit が装着する移動モーターが担う
         }
 
         // ================================================================
@@ -642,15 +781,32 @@ namespace Seed.App
         /// <summary>プレイヤーユニットを組み立てる（3Dモデル＋2D立ち絵の2表現）。</summary>
         private void BuildPlayerUnit(Sample_UnitSpec spec, Vector3 spawn, bool attachBody)
         {
+            // 実モデル（Humanoid）があれば RiggedAvatar、無ければ従来のカプセル
+            _playerModel = Sample_PlayerModel.TryCreate(_stageRoot.transform);
+            var modelAvatar = _playerModel != null
+                ? (IAvatar)_playerModel.Avatar
+                : CreateModelAvatar("Player", PrimitiveType.Capsule, new Color(0.25f, 0.45f, 0.9f));
+            if (_playerModel != null)
+            {
+                // モデルの原点は足元（カプセルは中心）なので、スポーン高さを地面へ合わせる
+                spawn = new Vector3(spawn.x, spawn.y - 1f, spawn.z);
+            }
+
             var agent = CharacterFactory.Create(_playerId, spec.ToDefinition(),
-                new ActorBlueprint(ModelActor,
-                    CreateModelAvatar("Player", PrimitiveType.Capsule, new Color(0.25f, 0.45f, 0.9f))),
+                new ActorBlueprint(ModelActor, modelAvatar),
                 new ActorBlueprint(PortraitActor,
                     CreatePortraitAvatar("Player2D", new Color(0.35f, 0.55f, 1f))));
             SetSpawnPose(agent, spawn, Quaternion.identity);
-            if (attachBody)
+
+            // 移動モーター（重力・ジャンプ・段差）。平地・生成ステージ問わず常に装着する
+            if (agent.ActiveActor.Avatar is Component avatarComponent)
             {
-                AttachBody(agent);
+                // 足元レイキャスト（足IK・カメラ衝突）が自分自身に当たらないようにする
+                SetLayerRecursive(avatarComponent.gameObject, 2); // Ignore Raycast
+                var bodyHeight = _playerModel != null ? Mathf.Max(1f, _playerModel.Height) : 1.6f;
+                _playerMotor = new Sample_PlayerMotor(avatarComponent.gameObject, bodyHeight,
+                    originAtFeet: _playerModel != null);
+                agent.ActiveActor.MotionSolver = _playerMotor;
             }
             agent.BehaviorStarted += OnBehaviorStarted;
 
@@ -707,16 +863,28 @@ namespace Seed.App
         /// 2D立ち絵Actorへ切り替えている間はコントローラが非アクティブになり、
         /// Solver は素通しに落ちる（CharacterControllerMotionSolver の仕様）。
         /// </summary>
-        private static void AttachBody(CharacterAgent agent)
+        private void AttachBody(CharacterAgent agent)
         {
-            if (!(agent.ActiveActor.Avatar is Avatar3D avatar))
+            // Avatar3D（カプセル/キューブ）と RiggedAvatar（実モデル）の両方に対応する
+            if (!(agent.ActiveActor.Avatar is Component avatarComponent))
             {
                 return;
             }
-            var controller = avatar.gameObject.AddComponent<CharacterController>();
-            controller.height = 1.6f;
-            controller.radius = 0.35f;
-            controller.center = Vector3.zero;
+            var controller = avatarComponent.gameObject.AddComponent<CharacterController>();
+            if (_playerModel != null && ReferenceEquals(agent.ActiveActor.Avatar, _playerModel.Avatar))
+            {
+                // 実モデル: 原点が足元なので中心を腰へ。寸法は実測身長から決める
+                var height = Mathf.Max(1f, _playerModel.Height);
+                controller.height = height * 0.95f;
+                controller.radius = 0.3f;
+                controller.center = new Vector3(0f, height * 0.5f, 0f);
+            }
+            else
+            {
+                controller.height = 1.6f;
+                controller.radius = 0.35f;
+                controller.center = Vector3.zero;
+            }
             agent.ActiveActor.MotionSolver = new CharacterControllerMotionSolver(controller);
         }
 
@@ -728,6 +896,12 @@ namespace Seed.App
         /// </summary>
         private void AttachDemoMotionRig(CharacterAgent agent)
         {
+            // 実モデル: プリミティブ関節は作らず、Humanoid ボーンへ直接リグを装着する
+            if (_playerModel != null && ReferenceEquals(agent.ActiveActor.Avatar, _playerModel.Avatar))
+            {
+                AttachModelRig(_playerModel);
+                return;
+            }
             if (!(agent.ActiveActor.Avatar is Avatar3D avatar))
             {
                 return;
@@ -736,11 +910,6 @@ namespace Seed.App
 
             // 腰（足IKが上下させる中心。頭・腕・脚はこの下に付けて一緒に沈む）
             var hips = CreateJoint(root, "Hips", Vector3.zero);
-
-            // カメラの追従先（三人称。腰より少し上を狙うと画面が安定する）
-            _cameraPivot = new GameObject("CameraPivot").transform;
-            _cameraPivot.SetParent(root, false);
-            _cameraPivot.localPosition = new Vector3(0f, 1.1f, 0f);
 
             // 頭（注視デモ用の小キューブ。向きが分かるよう鼻をつける）
             var head = new GameObject("Head").transform;
@@ -763,6 +932,7 @@ namespace Seed.App
             var shoulder = CreateJoint(hips, "Shoulder", new Vector3(0.45f, 0.7f, 0f));
             var elbow = CreateJoint(shoulder, "Elbow", new Vector3(0f, -0.35f, 0f));
             var hand = CreateJoint(elbow, "Hand", new Vector3(0f, -0.35f, 0f));
+            _playerHandBone = hand;
 
             // ポニーテール（揺れものデモ: 頭の動き・移動・旋回へ遅れて追従して揺れる）
             var tail0 = CreateJoint(head, "Tail0", new Vector3(0f, 0.05f, -0.22f));
@@ -789,7 +959,7 @@ namespace Seed.App
                 HipFollowSpeed = 2.5f,
             };
             _playerFeet = new FootIkRig(hips, leftLeg, rightLeg,
-                groundMask: ~0, settings: footSettings, castRange: 1f);
+                groundMask: Physics.DefaultRaycastLayers, settings: footSettings, castRange: 1f);
             _playerHead = head;
 
             // リグ: 注視（頭のみ・最大70度）＋ 腕IK（肘は背中側へ曲がる）＋ 足IK ＋ 揺れもの
@@ -815,6 +985,49 @@ namespace Seed.App
             cube.transform.SetParent(joint, false);
             cube.transform.localScale = new Vector3(0.14f, 0.14f, 0.14f);
             return joint;
+        }
+
+        /// <summary>
+        /// 実モデル（Humanoid）へ姿勢・IK・揺れもののリグを装着する。
+        /// ボーンは Animator の Humanoid 対応表から引くため、モデルの階層名に依存しない。
+        /// UnityChan の髪・リボン・スカート・袖はクリップに焼かれていない揺れもの専用ボーン
+        /// なので、Seed.Motion の SpringBoneRig がそのまま駆動する（収集は Sample_PlayerModel）。
+        /// </summary>
+        private void AttachModelRig(Sample_PlayerModel model)
+        {
+            var root = model.Avatar.transform;
+            _playerHead = model.Head; // 一人称はここへ固定される
+            _playerHandBone = model.Hand; // 拾ったアイテムの吸着先
+
+            // 注視: 首と頭へ配分すると振り向きが自然になる（首が無いリグは頭のみ）
+            _playerLook = model.Neck != null
+                ? new LookAtRig((model.Neck, 0.35f, 40f), (model.Head, 0.65f, 70f))
+                : new LookAtRig((model.Head, 1f, 70f));
+
+            // 左腕IK: 近距離で敵へ手を伸ばすデモ（目標は UpdateDemoRig が毎フレーム更新）
+            _playerArm = new TwoBoneIkRig(model.Shoulder, model.Elbow, model.Hand,
+                poleHint: root.position - root.forward * 2f + Vector3.up);
+
+            // 足IK: 階段・坂へ接地（つま先レイつき）。腰の沈み込みは控えめにして歩きを保つ
+            var footSettings = new FootIkSettings
+            {
+                FootHeight = 0.08f,
+                MaxStepHeight = 0.4f,
+                MaxHipDrop = 0.25f,
+                FootFollowSpeed = 4f,
+                HipFollowSpeed = 2.5f,
+            };
+            _playerFeet = new FootIkRig(model.Hips, model.LeftLeg, model.RightLeg,
+                groundMask: Physics.DefaultRaycastLayers, settings: footSettings, castRange: 1f);
+
+            var motionRig = root.gameObject.AddComponent<MotionRig>()
+                .With(_playerLook)   // 1) 首・頭の向き
+                .With(_playerArm)    // 2) 腕IK
+                .With(_playerFeet);  // 3) 足IK（腰を沈める）
+            for (var i = 0; i < model.Springs.Count; i++)
+            {
+                motionRig.With(model.Springs[i]); // 4) 揺れもの（最終姿勢に追従させるため最後）
+            }
         }
 
         /// <summary>片脚ぶんの関節を作る（股→膝→足→つま先）。</summary>
@@ -891,10 +1104,16 @@ namespace Seed.App
         private void BuildCameras()
         {
             var mainCamera = Camera.main;
-            if (mainCamera == null || _cameraPivot == null)
+            if (mainCamera == null)
             {
                 return;
             }
+            // カメラ注視点はキャラの子にしない（キャラの向きとマウスの向きを分離する）
+            _cameraPivot = new GameObject("CameraTarget").transform;
+            _cameraPivot.SetParent(_stageRoot.transform, false);
+            _cameraYaw = 0f;
+            _cameraPitch = 12f;
+            UpdateCameraPivot();
             var rigRoot = new GameObject("CameraRigs").transform;
             rigRoot.SetParent(_stageRoot.transform, false);
             var brain = CameraRigBuilder.EnsureBrain(mainCamera, defaultBlendSeconds: 0.4f);
@@ -997,6 +1216,7 @@ namespace Seed.App
             {
                 _triggers[i].Position += delta;
             }
+            _pickup?.ShiftOrigin(delta); // 拾う動作の目標点（純C#保持のワールド座標）
             // 足IKの時間追従は「前フレームからの差」で動くので、ワープ相当の移動では捨てる
             _playerFeet?.ResetFollow();
             Debug.Log($"[OriginShift] 世界を {delta} ずらした"
@@ -1044,37 +1264,330 @@ namespace Seed.App
             }
         }
 
+        /// <summary>拾えるオーブを配置する（開けた場所・坂の脇・階段の上＝移動デモと連結）。</summary>
+        private void BuildPickups()
+        {
+            _pickup = new Sample_PickupInteraction();
+            _pickupClock = 0f;
+            _pickup.PickedUp += (picked, total) =>
+                Debug.Log($"[Pickup] アイテムを拾った（{picked}/{total}）");
+
+            // 発光マテリアルは1枚だけ作って全オーブで共有する（暗黙の複製を避ける家風）
+            var shader = Shader.Find("Universal Render Pipeline/Lit");
+            if (shader != null)
+            {
+                _pickupMaterial = new Material(shader) { name = "PickupOrb(Shared)" };
+                _pickupMaterial.SetColor("_BaseColor", new Color(1f, 0.84f, 0.35f));
+                _pickupMaterial.EnableKeyword("_EMISSION");
+                _pickupMaterial.SetColor("_EmissionColor", new Color(1f, 0.72f, 0.2f) * 2.2f);
+            }
+
+            CreatePickupOrb(new Vector3(-2.5f, 0f, -1.5f));  // 開けた場所（最初に目へ入る）
+            CreatePickupOrb(new Vector3(-3.2f, 0f, 2.5f));   // 坂の脇
+            CreatePickupOrb(new Vector3(4.5f, 1.44f, 4.9f)); // 階段を登った台の上（移動→拾うの連結）
+        }
+
+        /// <summary>オーブを1個生成して拾える台帳へ登録する。</summary>
+        private void CreatePickupOrb(Vector3 localPosition)
+        {
+            var root = new GameObject("PickupOrb");
+            root.transform.SetParent(_stageRoot.transform, false);
+            root.transform.localPosition = localPosition;
+
+            var orb = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            orb.name = "Orb";
+            Object.Destroy(orb.GetComponent<Collider>()); // 見た目だけ＝移動・足IKのレイを邪魔しない
+            orb.transform.SetParent(root.transform, false);
+            orb.transform.localPosition = new Vector3(0f, PickupOrbHeight, 0f);
+            orb.transform.localScale = Vector3.one * PickupOrbScale;
+            var renderer = orb.GetComponent<Renderer>();
+            if (_pickupMaterial != null)
+            {
+                renderer.sharedMaterial = _pickupMaterial;
+            }
+            else
+            {
+                RendererTint.Set(renderer, new Color(1f, 0.84f, 0.35f)); // URP 外の保険
+            }
+
+            // ほのかな点光源（「拾えるもの」の誘導。3個程度なら URP Forward で無視できる負荷）
+            var glow = new GameObject("Glow", typeof(Light)).GetComponent<Light>();
+            glow.transform.SetParent(orb.transform, false);
+            glow.type = LightType.Point;
+            glow.range = 2.4f;
+            glow.intensity = 1.2f;
+            glow.color = new Color(1f, 0.8f, 0.45f);
+
+            _pickup.AddItem(orb.transform);
+        }
+
+        /// <summary>拾う動作の進行（状態はTick。腕IKへの反映は UpdateDemoRig=艶が担う）。</summary>
+        private void TickPickup(float deltaTime)
+        {
+            if (_pickup == null || _playerController == null)
+            {
+                return;
+            }
+            var pose = _playerController.Agent.ActiveActor.Pose;
+            _pickup.Tick(deltaTime, pose.Position, pose.PlanarSpeed, _playerHandBone);
+        }
+
+        /// <summary>
+        /// オーブの浮遊・回転・接近パルス（拾える距離に入ると脈打って知らせる）。
+        /// 時間基盤のdt（Drainが渡すゲームdt）で進める＝スロー・ヒットストップも世界と揃う。
+        /// </summary>
+        private void AnimatePickups(float deltaTime)
+        {
+            if (_pickup == null || _playerController == null)
+            {
+                return;
+            }
+            _pickupClock += deltaTime;
+            var playerPosition = _playerController.Agent.ActiveActor.Pose.Position;
+            var items = _pickup.Items;
+            for (var i = 0; i < items.Count; i++)
+            {
+                var item = items[i];
+                var bob = Mathf.Sin(_pickupClock * 2f + i * 1.7f) * 0.06f;
+                var near = Vector3.Distance(item.position, playerPosition) < _pickup.StartRange;
+                var pulse = near ? 1f + Mathf.Sin(_pickupClock * 8f) * 0.08f : 1f;
+                item.localPosition = new Vector3(0f, PickupOrbHeight + bob, 0f);
+                item.localScale = Vector3.one * (PickupOrbScale * pulse);
+                item.Rotate(0f, 90f * deltaTime, 0f, Space.Self);
+            }
+        }
+
+        /// <summary>
+        /// 戦場の空気感を整える（フォグ＋光）。プリミティブ主体のステージでも
+        /// 距離のフォグと柔らかい影があるだけで奥行きと接地感が出る。OnExit で戻す。
+        /// </summary>
+        private void ApplyAtmosphere()
+        {
+            RenderSettings.fog = true;
+            RenderSettings.fogMode = FogMode.Linear;
+            RenderSettings.fogStartDistance = 25f;
+            RenderSettings.fogEndDistance = 80f;
+            RenderSettings.fogColor = new Color(0.72f, 0.78f, 0.86f);
+
+            var light = Object.FindFirstObjectByType<Light>();
+            if (light != null && light.type == LightType.Directional)
+            {
+                light.shadows = LightShadows.Soft;      // 接地感の要
+                light.intensity = 1.05f;
+                light.color = new Color(1f, 0.96f, 0.9f); // わずかに暖色＝屋外光
+                light.transform.rotation = Quaternion.Euler(48f, -35f, 0f);
+            }
+        }
+
+        /// <summary>カメラ注視点をプレイヤーへ追従させ、マウスの向きを反映する。</summary>
+        private void UpdateCameraPivot()
+        {
+            if (_cameraPivot == null || _playerController == null)
+            {
+                return;
+            }
+            var pose = _playerController.Agent.ActiveActor.Pose;
+            var height = _playerModel != null ? _playerModel.Height * 0.72f : 1.1f;
+            _cameraPivot.position = pose.Position + Vector3.up * height;
+            _cameraPivot.rotation = Quaternion.Euler(_cameraPitch, _cameraYaw, 0f);
+        }
+
+        /// <summary>
+        /// 移動入力が無いTickにも重力・着地を効かせる（Idle/Guard 中に宙に浮くのを防ぐ）。
+        /// Locomotion が既にモーターを動かしたTickは何もしない。
+        /// </summary>
+        private void ApplyIdleGravity()
+        {
+            if (_playerMotor == null || _playerController == null)
+            {
+                return;
+            }
+            if (_playerMotor.ConsumeMovedThisTick())
+            {
+                return;
+            }
+            var actor = _playerController.Agent.ActiveActor;
+            actor.Pose.Position = _playerMotor.Move(actor.Pose.Position, Vector3.zero);
+            actor.Avatar.ApplyPose(actor.Pose.Position, actor.Pose.Rotation);
+        }
+
+        /// <summary>
+        /// 速度・接地に応じてクリップと足IKの効きを選ぶ（歩き/走り/滞空の艶の方針）。
+        /// Driver.Play は同じIDの再指定を流し直さないため、毎フレーム呼んで安全。
+        /// </summary>
+        private void UpdatePlayerAnimation()
+        {
+            if (_playerMotor == null || _playerController == null)
+            {
+                return;
+            }
+            var actor = _playerController.Agent.ActiveActor;
+            var grounded = _playerMotor.IsGrounded;
+
+            // 足IK: 立ち止まりは全効き・移動中は弱め・滞空は切る（足運びを邪魔しない）
+            if (_playerFeet != null)
+            {
+                var target = !grounded ? 0f : actor.Pose.PlanarSpeed < 0.2f ? 1f : 0.2f;
+                _playerFeet.Weight = Mathf.MoveTowards(
+                    _playerFeet.Weight, target, Time.deltaTime * 5f);
+            }
+
+            var driver = _playerModel?.Avatar.Driver;
+            if (driver == null)
+            {
+                return;
+            }
+            if (!grounded)
+            {
+                driver.Play(Sample_PlayerModel.JumpClipId, 0.12f); // 滞空（接地判定は猶予つき）
+                return;
+            }
+            var key = actor.CurrentKey;
+            if (key.Equals(BehaviorKey.Locomotion))
+            {
+                // 歩き⇄走りはヒステリシス（境界1本だと閾値付近で毎フレーム往復して痙攣する）
+                var speed = actor.Pose.PlanarSpeed;
+                if (_runClipActive ? speed < 2.2f : speed > 3.2f)
+                {
+                    _runClipActive = !_runClipActive;
+                }
+                driver.Play(_runClipActive
+                    ? MotionClipId.Locomotion
+                    : Sample_PlayerModel.WalkClipId, 0.25f);
+            }
+            else if (key.Equals(BehaviorKey.Idle))
+            {
+                _runClipActive = false;
+                // 討伐成功後の立ち止まりは勝利ポーズ（非ループ＝決めポーズで止まる）
+                driver.Play(_victory ? Sample_PlayerModel.WinClipId : MotionClipId.Idle, 0.25f);
+            }
+        }
+
+        /// <summary>子階層まで含めてレイヤーを付け替える（自己レイキャスト回避用）。</summary>
+        private static void SetLayerRecursive(GameObject target, int layer)
+        {
+            target.layer = layer;
+            var transform = target.transform;
+            for (var i = 0; i < transform.childCount; i++)
+            {
+                SetLayerRecursive(transform.GetChild(i).gameObject, layer);
+            }
+        }
+
         /// <summary>
         /// リグの目標を毎フレーム更新する（頭は常に敵を注視、腕は近距離だけ伸びる）。
         /// 生死・距離による重みの決め方はゲームの演出方針＝ここ（App）が持つ。
         /// </summary>
         private void UpdateDemoRig()
         {
+            UpdatePlayerAnimation();
             if (_playerLook == null)
             {
                 return;
             }
-            if (!_characters.Registry.TryGet(_enemyId, out var enemy) || !enemy.IsAlive)
+            // まず「どこへ・どれだけ」の望みを決め、最後にまとめて平滑適用する。
+            // 分岐（拾う⇄敵リーチ）の切替で目標・重みが1フレームで跳ねないための二段構え
+            Vector3? lookDesired = null;
+            var lookWeightDesired = 0f;
+            Vector3? armDesired = null;
+            var armWeightDesired = 0f;
+
+            var actor = _playerController.Agent.ActiveActor;
+            var speed = actor.Pose.PlanarSpeed;
+
+            // 肘の曲げ方向の基準は「今の体の背中側」へ毎フレーム更新する。
+            // 生成時の固定点のままだと移動・旋回・原点回帰で基準が置き去りになり、
+            // 体の向きによって肘があらぬ方向へ曲がる
+            _playerArm.SetPoleHint(actor.Pose.Position
+                - actor.Pose.Rotation * Vector3.forward * 2f + Vector3.up);
+
+            if (_pickup != null && _pickup.HasTarget)
             {
-                _playerLook.ClearTarget();
-                _playerArm.ClearTarget();
-                return;
+                // 拾う動作中は腕も視線もアイテムへ（敵への手伸ばしより優先）
+                lookDesired = _pickup.TargetPoint;
+                lookWeightDesired = 1f;
+                armDesired = _pickup.TargetPoint;
+                armWeightDesired = _pickup.Weight;
+            }
+            else if (_characters.Registry.TryGet(_enemyId, out var enemy) && enemy.IsAlive)
+            {
+                var enemyPosition = enemy.ActiveActor.Pose.Position;
+
+                // 注視: 走行中は弱める（全力の首振りは走り姿勢を壊す）
+                lookDesired = enemyPosition + Vector3.up * 0.5f;
+                lookWeightDesired = speed > 0.5f ? 0.5f : 1f;
+
+                // 腕IK: 立ち止まっているときだけ手を伸ばす（走行中の腕引っ張りは姿勢が崩れる）
+                var distance = Vector3.Distance(actor.Pose.Position, enemyPosition);
+                const float reachRange = 3f;
+                if (distance < reachRange && speed < 0.8f
+                    && (_playerMotor == null || _playerMotor.IsGrounded))
+                {
+                    armDesired = enemyPosition + Vector3.up * 0.6f;
+                    armWeightDesired = 1f - distance / reachRange; // 近いほど強く伸びる
+                }
             }
 
-            var enemyPosition = enemy.ActiveActor.Pose.Position;
-            _playerLook.SetTarget(enemyPosition + Vector3.up * 0.5f);
+            ApplyAimSmoothing(lookDesired, lookWeightDesired, armDesired, armWeightDesired);
+        }
 
-            var playerPosition = _playerController.Agent.ActiveActor.Pose.Position;
-            var distance = Vector3.Distance(playerPosition, enemyPosition);
-            const float reachRange = 3f;
-            if (distance < reachRange)
+        /// <summary>
+        /// 注視・腕IKの目標と重みをなめらかに追従させて適用する（艶）。
+        /// リグ側に平滑は無い（SetTarget 即時反映）ため、切替の吸収は配線側の責務。
+        /// 目標が無くなったら重みを減衰させ、消え切ってから ClearTarget する。
+        /// </summary>
+        private void ApplyAimSmoothing(Vector3? lookDesired, float lookWeightDesired,
+            Vector3? armDesired, float armWeightDesired)
+        {
+            var follow = 1f - Mathf.Exp(-14f * Time.deltaTime); // 目標位置の追従率
+            var weightStep = Time.deltaTime * 6f;               // 重みの最大変化速度
+
+            if (lookDesired.HasValue)
             {
-                _playerArm.Weight = 1f - distance / reachRange; // 近いほど強く伸びる
-                _playerArm.SetTarget(enemyPosition + Vector3.up * 0.6f);
+                _lookPoint = _lookPointValid
+                    ? Vector3.Lerp(_lookPoint, lookDesired.Value, follow)
+                    : lookDesired.Value;
+                _lookPointValid = true;
+                _lookWeightBlend = Mathf.MoveTowards(_lookWeightBlend, lookWeightDesired, weightStep);
+                _playerLook.Weight = _lookWeightBlend;
+                _playerLook.SetTarget(_lookPoint);
             }
             else
             {
-                _playerArm.ClearTarget();
+                _lookWeightBlend = Mathf.MoveTowards(_lookWeightBlend, 0f, weightStep);
+                if (_lookWeightBlend <= 0.001f)
+                {
+                    _playerLook.ClearTarget();
+                    _lookPointValid = false;
+                }
+                else
+                {
+                    _playerLook.Weight = _lookWeightBlend;
+                }
+            }
+
+            if (armDesired.HasValue)
+            {
+                _armPoint = _armPointValid
+                    ? Vector3.Lerp(_armPoint, armDesired.Value, follow)
+                    : armDesired.Value;
+                _armPointValid = true;
+                _armWeightBlend = Mathf.MoveTowards(_armWeightBlend, armWeightDesired, weightStep);
+                _playerArm.Weight = _armWeightBlend;
+                _playerArm.SetTarget(_armPoint);
+            }
+            else
+            {
+                _armWeightBlend = Mathf.MoveTowards(_armWeightBlend, 0f, weightStep);
+                if (_armWeightBlend <= 0.001f)
+                {
+                    _playerArm.ClearTarget();
+                    _armPointValid = false;
+                }
+                else
+                {
+                    _playerArm.Weight = _armWeightBlend;
+                }
             }
         }
 

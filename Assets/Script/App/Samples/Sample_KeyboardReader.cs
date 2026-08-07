@@ -11,7 +11,7 @@ namespace Seed.App
     /// InputActionAsset の割り当てを要求しない最小実装を用意している。
     /// 実プロジェクトでは InputSystemReader（.inputactions 駆動・リバインド可能）を使うこと。
     /// 割り当て: WASD=移動 / [1]=Attack / [2]=Interact / [3]=Submit /
-    /// [G]=Guard / [T]=Next（Actor切替に流用）/ [B]=Cancel（戻る）/ [P]=Previous（ポーズに流用）/ [O]=Jump（自動操縦切替に流用）。
+    /// [G]=Guard / [T]=Next（Actor切替に流用）/ [B]=Cancel（戻る）/ [P]=Previous（ポーズに流用）/ [Space]=Jump / [O]=自動操縦 / [Shift]=歩き / マウス=視点。
     /// ボタンの「意味」はフェーズごとに変わる（ホームの[1]は出撃、戦闘の[1]は攻撃）
     /// ——意味づけは各フェーズの仕事で、リーダーは状態を写すだけ。
     /// </summary>
@@ -43,9 +43,15 @@ namespace Seed.App
             pressed = InputSnapshot.SetPressed(pressed, ActionId.Next, keyboard.tKey.isPressed);
             pressed = InputSnapshot.SetPressed(pressed, ActionId.Cancel, keyboard.bKey.isPressed);
             pressed = InputSnapshot.SetPressed(pressed, ActionId.Previous, keyboard.pKey.isPressed);
-            pressed = InputSnapshot.SetPressed(pressed, ActionId.Jump, keyboard.oKey.isPressed);
+            pressed = InputSnapshot.SetPressed(pressed, ActionId.Jump, keyboard.spaceKey.isPressed);
+            pressed = InputSnapshot.SetPressed(pressed, Sample_ActionIds.Autopilot, keyboard.oKey.isPressed);
+            pressed = InputSnapshot.SetPressed(pressed, Sample_ActionIds.Walk, keyboard.leftShiftKey.isPressed);
 
-            return new InputSnapshot(move, Vector2.zero, pressed);
+            // マウス視点（TPSの標準操作）。マウス未接続なら 0 のまま
+            var mouse = Mouse.current;
+            var look = mouse != null ? mouse.delta.ReadValue() : Vector2.zero;
+
+            return new InputSnapshot(move, look, pressed);
         }
     }
 }

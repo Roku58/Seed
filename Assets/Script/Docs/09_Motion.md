@@ -91,6 +91,14 @@ Console に特別なログは出ません（構成ミス時のみ HubException�
 
 なおデモのリグ装着（`Sample_BattlePhase.AttachDemoMotionRig`）は Avatar3D 用です。RiggedAvatar はデモでは未使用で、実モデル向けの本命実装です（次節）。
 
+> 📖 **実モデルでの実例**: デモは UnityChan（`Assets/UnityChan`）を使います。
+> `Sample_PlayerModel`（`Assets/Script/App/Samples/Sample_PlayerModel.cs`）が RiggedAvatar＋
+> クリップ台帳（Idle/Locomotion/Attack/Guard/Hit/Death の6種）を組み、注視・腕IK・足IKを
+> `GetBoneTransform` の Humanoid ボーンへ、**揺れもの（髪・リボン・スカート・袖）を
+> SpringBoneRig へ**装着します。初回はメニュー `Seed/Setup/Build UnityChan Player Prefab` を
+> 実行してください（URP マテリアル変換＋クリップ複製）。モデルが無い環境ではプリミティブへ
+> 自動フォールバックします。
+
 ## 4. コードで使う
 
 ### 最小例 — 2 クリップだけの RiggedAvatar
