@@ -3,7 +3,8 @@
     "rootNamespace": "Seed.UI",
     "references": [
         "Seed.Hub",
-        "Seed.Hub.Contracts"
+        "Seed.Hub.Contracts",
+        "UnityEngine.UI"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

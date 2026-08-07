@@ -330,9 +330,7 @@ AiDirector（メタAI: 戦場全体の采配。指示書 AiOrders を配る＝�
 | 広大なフィールド | `OriginShiftSystem` に根 Transform と追従契約を登録（純C#の座標は自分で加算） |
 | 生成ステージの美術 | メニュー `Seed/Stage Palette` でプレハブを割り当て、`BuildPalette()` を渡す |
 | 揺れもの（髪・尻尾・マント） | ボーン列を SpringBoneRig へ渡し MotionRig.With で装着（球コライダー任意） |
-| 視点（カメラ） | CinemachineCamera を組んで CameraDirector.Register 1行＋SetViewpointCommand |
-| 使い回す実体（弾・エフェクト） | PoolRegistry.Rent / Return（寿命の方針は App が書く） |
-| 広いフィールド | OriginShiftSystem に根 Transform と追従契約を登録 |
+| UI部品（ボタン等） | SeedButton / SeedToggle / SeedSlider（uGUI継承。連打防止・IDisposable購読・SEフック内蔵） |
 | 非同期ロード | UniTask で書いて UniTaskFlowOperation / IAssetLoader に載せる（殻限定） |
 | ログ | GameLog.CreateLogger(基盤名) → ZLog 系で書く |
 | 地形の種類（洞窟・塔…） | IGenerationPass を1つ書いてパイプラインに Add |
