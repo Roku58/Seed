@@ -21,7 +21,13 @@
         "Seed.Cameras",
         "Seed.Pooling",
         "Seed.World",
-        "Unity.Cinemachine"
+        "Unity.Cinemachine",
+        "VContainer",
+        "UniTask",
+        "LitMotion",
+        "Seed.Logging",
+        "Seed.Assets",
+        "UnityDebugSheet"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

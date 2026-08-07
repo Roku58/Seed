@@ -305,6 +305,29 @@ public sealed class DungeonPhase : GamePhase
 **フェーズに置いた状態は再入のたび消える**ので、持ち越したい状態（所持金・編成など）は
 永続ルートが所有するサービス（`ServiceRegistry` 登録）に置くのが規約です。
 
+### UniTask でロードを書く（UniTaskFlowOperation）
+
+ロード処理を async/await で書き、`IFlowOperation` に包んで返せます（→ [18_Libraries.md](18_Libraries.md)）。
+
+```csharp
+using Cysharp.Threading.Tasks;
+using Seed.Flow;
+
+protected override IFlowOperation CreateLoadOperation(int payload)
+{
+    // async 関数をそのまま遷移の非同期作業にできる（GameFlow 側の契約は不変）
+    return new UniTaskFlowOperation(LoadStageAsync(payload));
+}
+
+private async UniTask LoadStageAsync(int payload)
+{
+    await UniTask.Delay(100);          // 例: セーブ読込・アセット先読みなど
+    // await _assetLoader.LoadAsync<GameObject>("Stage201");  // 実戦ではこう繋がる
+}
+```
+
+`async` を書いてよいのは「殻」（ロード・遷移・IO・演出）だけ、という規約は 18 章の依存の鉄則を参照してください。
+
 ## 6. よくあるつまずき
 
 - **症状**: `Start()` を呼んだのに何も表示されない

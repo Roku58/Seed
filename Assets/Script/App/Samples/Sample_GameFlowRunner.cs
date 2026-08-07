@@ -1,118 +1,60 @@
 // ============================================================================
 // 【サンプルコード】Sample_GameFlowRunner
-// ゲーム全体のフロー（ホーム⇄戦闘⇄ショップ）を回す永続ルート。
+// ゲーム全体のフロー（ホーム⇄戦闘⇄ショップ）を回す永続ルート（VContainer 版）。
 //
 // 空のGameObjectにアタッチしてPlayするだけで動く。
-//   ホーム : [1] 草原へ出撃 / [2] 火山へ出撃 / [3] ショップ
-//   戦闘   : WASD移動 / [1]攻撃 / [G]ガード / [T]3D⇔2D切替 / [B]ホームへ
-//   ショップ: [B]ホームへ
+//   ホーム : [1] 草原へ出撃 / [2] 火山へ出撃 / [3] ショップ / [4] 迷宮 / [5] 市街
+//   戦闘   : WASD移動 / [1]攻撃 / [G]ガード / [T]3D⇔2D切替 / [C]視点切替 / [B]ホームへ
 //
-// 役割分担（フェーズをまたぐもの vs フェーズの中のもの）:
-//   永続ルート（このクラス）… MessageHub / ServiceRegistry / InputRouter /
-//                              マスターデータ / GameFlow / カメラ・ライト
-//   各フェーズ（GamePhase）  … その場でだけ使う基盤・舞台・画面
-//                              （OnEnter で組み、OnExit で逆順に全部消える）
+// [VContainer の役割分担]
+//   Configure（このクラス）… 「何を作り、誰に何を渡すか」の宣言（生成と寿命）
+//   Sample_GameLoop        … 「どの順で初期化し、毎フレーム何を回すか」（駆動順）
+//   各フェーズ（GamePhase）… その場でだけ使う基盤・舞台・画面（1フェーズ=1合成ルート）
 //
-// ステージ切り替え＝ ChangePhaseCommand(Battle, StageId.Value) を発行するだけ。
-// 同じ戦闘フェーズに別のステージ仕様で再入する（エリア移動も同じ経路）。
+// DI が置き換えたのは手書きの new の配線だけで、Hub（通信）・TickPipeline（駆動順）・
+// フェーズ内の CompositionScope（逆順片付け）はそのまま——コンテナは万能の置き場ではなく、
+// 「オブジェクトの構築と寿命」だけを受け持つ。
 // ============================================================================
 
-using Seed.App;
 using Seed.Clock;
-using Seed.Data;
 using Seed.Flow;
 using Seed.Hub;
+using Seed.Hub.Contracts;
 using Seed.Input;
-using UnityEngine;
+using VContainer;
+using VContainer.Unity;
 
 namespace Seed.App
 {
-    /// <summary>【サンプル】GameFlow を駆動する永続ルート（ゲームの入口）。</summary>
-    public sealed class Sample_GameFlowRunner : MonoBehaviour
+    /// <summary>【サンプル】永続ルート（VContainer の LifetimeScope。ゲームの入口）。</summary>
+    public sealed class Sample_GameFlowRunner : LifetimeScope
     {
-        /// <summary>仲介基盤: メッセージハブ。</summary>
-        private MessageHub _hub;
-
-        /// <summary>仲介基盤: サービス台帳。</summary>
-        private ServiceRegistry _services;
-
-        /// <summary>入力基盤: エッジ検出つきルーター（毎フレームここで1回だけ Tick）。</summary>
-        private InputRouter _input;
-
-        /// <summary>フロー基盤: フェーズ遷移状態機械。</summary>
-        private GameFlow _flow;
-
-        /// <summary>時間基盤: dt の供給源（ポーズ・倍速・ヒットストップ）。</summary>
-        private GameClock _clock;
-
-        /// <summary>永続ルート: 生成→フェーズ登録→初期フェーズ予約。</summary>
-        private void Start()
+        /// <summary>依存の宣言（生成順はコンテナが解決し、初期化順は GameLoop が持つ）。</summary>
+        protected override void Configure(IContainerBuilder builder)
         {
-            // 1. フェーズをまたいで生きる基盤
-            _hub = new MessageHub();
-            _services = new ServiceRegistry();
-            _input = new InputRouter(new Sample_KeyboardReader());
-            _clock = new GameClock();
-            _clock.Initialize(_hub, _services);
+            // 仲介基盤（IDisposable は登録の逆順で自動 Dispose される）
+            builder.Register<MessageHub>(Lifetime.Singleton);
+            builder.Register<ServiceRegistry>(Lifetime.Singleton);
 
-            // 2. マスターデータ（ユニット＋ステージ。IDは GameCore の値体系と同値運用）
-            var catalog = Sample_MasterCatalog.Build(
-                new Seed.Hub.Contracts.CharacterId(1), new Seed.Hub.Contracts.CharacterId(2));
+            // 時間基盤 → フロー基盤の順に登録（Dispose は逆順＝フローが先に畳まれる）
+            builder.Register<GameClock>(Lifetime.Singleton);
+            builder.Register<GameFlow>(Lifetime.Singleton);
 
-            // 3. カメラ・ライト（フェーズをまたいで使い回す）
-            BuildCameraAndLight();
+            // 入力基盤（Reader の差し替えはこの1行。実プロジェクトは InputSystemReader へ）
+            builder.Register<Sample_KeyboardReader>(Lifetime.Singleton).As<IInputReader>();
+            builder.Register<InputRouter>(Lifetime.Singleton);
 
-            // 4. フローとフェーズ（フェーズの追加＝AddPhase 1行）
-            _flow = new GameFlow(_hub);
-            _flow.AddPhase(new Sample_HomePhase(_hub, _input, catalog));
-            _flow.AddPhase(new Sample_BattlePhase(_hub, _services, _input, catalog));
-            _flow.AddPhase(new Sample_ShopPhase(_hub, _input));
-            _flow.Start(Sample_PhaseIds.Home);
-        }
+            // マスターデータ（ベイク済みバイナリがあれば MasterMemory から、無ければコード直書き）
+            builder.RegisterInstance(Sample_MasterBinary.LoadCatalog(
+                new CharacterId(1), new CharacterId(2)));
 
-        /// <summary>毎フレーム: 入力を1回読み、フローに全てを委ねる。</summary>
-        private void Update()
-        {
-            _clock.Tick(Time.deltaTime); // dt の供給源はここだけ（ポーズ・倍速が全基盤へ同時に効く）
-            _input.Tick();
-            _flow.Tick(_clock.UnscaledDelta); // フェーズ遷移とメニューはポーズ中も動く
-        }
+            // フェーズ（追加＝ここに1行＋GameLoop の AddPhase に1行）
+            builder.Register<Sample_HomePhase>(Lifetime.Singleton);
+            builder.Register<Sample_BattlePhase>(Lifetime.Singleton);
+            builder.Register<Sample_ShopPhase>(Lifetime.Singleton);
 
-        /// <summary>
-        /// フレーム末尾: PublishDeferred で積まれた遅延メッセージを配達する。
-        /// Update 系の処理（入力・フロー・各フェーズ）が全て終わった後に配達することで、
-        /// 「今フレームの連鎖の外へ回す」という PublishDeferred の約束を守る。
-        /// </summary>
-        private void LateUpdate()
-        {
-            _hub.Pump();
-        }
-
-        /// <summary>滞在中フェーズの片付けまで含めて終了する。</summary>
-        private void OnDestroy()
-        {
-            _flow?.Dispose();
-            _clock?.Dispose();
-        }
-
-        /// <summary>カメラとライトを用意する（無ければ作る）。</summary>
-        private void BuildCameraAndLight()
-        {
-            var camera = Camera.main;
-            if (camera == null)
-            {
-                camera = new GameObject("Main Camera", typeof(Camera)).GetComponent<Camera>();
-                camera.tag = "MainCamera";
-            }
-            camera.transform.position = new Vector3(0f, 8f, -8f);
-            camera.transform.LookAt(new Vector3(0f, 1f, 0f));
-
-            if (FindFirstObjectByType<Light>() == null)
-            {
-                var light = new GameObject("Directional Light", typeof(Light)).GetComponent<Light>();
-                light.type = LightType.Directional;
-                light.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
-            }
+            // 駆動役（IStartable/ITickable/ILateTickable が PlayerLoop に載る）
+            builder.RegisterEntryPoint<Sample_GameLoop>();
         }
     }
 }

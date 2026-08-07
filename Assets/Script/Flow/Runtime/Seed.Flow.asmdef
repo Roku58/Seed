@@ -3,7 +3,8 @@
     "rootNamespace": "Seed.Flow",
     "references": [
         "Seed.Hub",
-        "Seed.Hub.Contracts"
+        "Seed.Hub.Contracts",
+        "UniTask"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
