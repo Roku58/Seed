@@ -1,0 +1,21 @@
+{
+    "name": "Seed.Tools.Editor",
+    "rootNamespace": "Seed.Tools.Editor",
+    "references": [
+        "NuGetForUnity",
+        "Seed.App",
+        "Seed.Data",
+        "Seed.Hub.Contracts"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
