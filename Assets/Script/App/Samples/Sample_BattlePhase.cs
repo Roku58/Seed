@@ -115,7 +115,14 @@ namespace Seed.App
         private Sample_PlayerModel _playerModel;
 
         /// <summary>プレイヤーの移動モーター（重力・ジャンプ・段差を一手に担う）。</summary>
-        private Sample_PlayerMotor _playerMotor;
+        private Sample_KinematicMotor _playerMotor;
+
+        /// <summary>この戦闘の全モーター（プレイヤー＋敵。毎Tickの dt 供給先）。</summary>
+        private readonly List<Sample_KinematicMotor> _bodyMotors =
+            new List<Sample_KinematicMotor>();
+
+        /// <summary>揺れものが有効か（[4] で切替。無し状態のサンプル比較用）。</summary>
+        private bool _springsEnabled = true;
 
         /// <summary>カメラの水平角（度。マウスで回す）。</summary>
         private float _cameraYaw;
@@ -310,7 +317,13 @@ namespace Seed.App
             _pipeline = new TickPipeline();
             _pipeline.Add(TickPhase.Input, HandlePlayerInput);
             _pipeline.Add(TickPhase.Simulation, dt => _director.Tick(dt));
-            _pipeline.Add(TickPhase.Simulation, dt => _playerMotor?.PreTick(dt));
+            _pipeline.Add(TickPhase.Simulation, dt =>
+            {
+                for (var i = 0; i < _bodyMotors.Count; i++)
+                {
+                    _bodyMotors[i].PreTick(dt);
+                }
+            });
             _pipeline.Add(TickPhase.Simulation, dt => _characters.Tick(dt));
             _pipeline.Add(TickPhase.Simulation, _ => ApplyIdleGravity());
             _pipeline.Add(TickPhase.Simulation, dt => TickPickup(dt));
@@ -334,6 +347,7 @@ namespace Seed.App
             _lookSmoothed = Vector2.zero;
             _runClipActive = false;
             _victory = false;
+            _springsEnabled = true;
             ApplyAtmosphere();
 
             var battleSubscriptions = _scope.Own(new SubscriptionBag(1));
@@ -379,6 +393,7 @@ namespace Seed.App
             _triggers.Clear();
             _playerModel = null;
             _playerMotor = null;
+            _bodyMotors.Clear();
             _pickup?.Clear();
             _pickup = null;
             _playerHandBone = null;
@@ -460,6 +475,18 @@ namespace Seed.App
                 var agent = _playerController.Agent;
                 var next = agent.ActiveActor.Key.Equals(ModelActor) ? PortraitActor : ModelActor;
                 agent.SwitchActor(next);
+            }
+
+            // [4] 揺れものON/OFF——「揺れもの無しの3Dサンプル」状態と見比べるための切替。
+            // Weight=0 は書き戻しだけ止めてシミュは続ける仕様＝再ONでも不連続にならない
+            if (_input.WasPressedThisFrame(Sample_ActionIds.Slot4) && _playerModel != null)
+            {
+                _springsEnabled = !_springsEnabled;
+                for (var i = 0; i < _playerModel.Springs.Count; i++)
+                {
+                    _playerModel.Springs[i].Weight = _springsEnabled ? 1f : 0f;
+                }
+                Debug.Log($"[Motion] 揺れもの: {(_springsEnabled ? "ON" : "OFF")}");
             }
 
             if (_isAutopilot)
@@ -804,8 +831,9 @@ namespace Seed.App
                 // 足元レイキャスト（足IK・カメラ衝突）が自分自身に当たらないようにする
                 SetLayerRecursive(avatarComponent.gameObject, 2); // Ignore Raycast
                 var bodyHeight = _playerModel != null ? Mathf.Max(1f, _playerModel.Height) : 1.6f;
-                _playerMotor = new Sample_PlayerMotor(avatarComponent.gameObject, bodyHeight,
+                _playerMotor = new Sample_KinematicMotor(avatarComponent.gameObject, bodyHeight,
                     originAtFeet: _playerModel != null);
+                _bodyMotors.Add(_playerMotor);
                 agent.ActiveActor.MotionSolver = _playerMotor;
             }
             agent.BehaviorStarted += OnBehaviorStarted;
@@ -858,34 +886,23 @@ namespace Seed.App
         }
 
         /// <summary>
-        /// 生成ステージ用の当たりを装着する（CharacterController＋MotionSolver）。
-        /// これにより生成した壁・建物が実際に移動を遮る（IMotionSolver の実演）。
-        /// 2D立ち絵Actorへ切り替えている間はコントローラが非アクティブになり、
-        /// Solver は素通しに落ちる（CharacterControllerMotionSolver の仕様）。
+        /// 敵の当たりを装着する（CapsuleCollider＋kinematic Rigidbody＋自前モーター）。
+        /// Unity 標準の CharacterController は使わない（プロジェクト方針）。
+        /// 生成した壁・建物が実際に移動を遮り、重力・段差も自前の
+        /// collide-and-slide が解決する（プレイヤーと同じモーターの使い回し）。
+        /// 2D立ち絵Actorへ切り替えている間は実体が非アクティブ＝Solver は素通しに落ちる。
         /// </summary>
         private void AttachBody(CharacterAgent agent)
         {
-            // Avatar3D（カプセル/キューブ）と RiggedAvatar（実モデル）の両方に対応する
             if (!(agent.ActiveActor.Avatar is Component avatarComponent))
             {
                 return;
             }
-            var controller = avatarComponent.gameObject.AddComponent<CharacterController>();
-            if (_playerModel != null && ReferenceEquals(agent.ActiveActor.Avatar, _playerModel.Avatar))
-            {
-                // 実モデル: 原点が足元なので中心を腰へ。寸法は実測身長から決める
-                var height = Mathf.Max(1f, _playerModel.Height);
-                controller.height = height * 0.95f;
-                controller.radius = 0.3f;
-                controller.center = new Vector3(0f, height * 0.5f, 0f);
-            }
-            else
-            {
-                controller.height = 1.6f;
-                controller.radius = 0.35f;
-                controller.center = Vector3.zero;
-            }
-            agent.ActiveActor.MotionSolver = new CharacterControllerMotionSolver(controller);
+            // 敵（中心原点のプリミティブ）用の寸法。プレイヤーの体は BuildPlayerUnit が装着済み
+            var motor = new Sample_KinematicMotor(avatarComponent.gameObject, 1.6f,
+                originAtFeet: false, radius: 0.35f);
+            _bodyMotors.Add(motor);
+            agent.ActiveActor.MotionSolver = motor;
         }
 
         /// <summary>
@@ -1439,7 +1456,13 @@ namespace Seed.App
             }
             if (!grounded)
             {
-                driver.Play(Sample_PlayerModel.JumpClipId, 0.12f); // 滞空（接地判定は猶予つき）
+                // 非ループクリップは Play のたびに先頭から流し直される（Driver の
+                // 再トリガー仕様＝攻撃連打用）。毎フレーム呼ぶと最初のポーズで凍りつくため、
+                // 再生中でないときだけ流す
+                if (!driver.CurrentMotion.Equals(Sample_PlayerModel.JumpClipId))
+                {
+                    driver.Play(Sample_PlayerModel.JumpClipId, 0.12f);
+                }
                 return;
             }
             var key = actor.CurrentKey;
@@ -1458,8 +1481,13 @@ namespace Seed.App
             else if (key.Equals(BehaviorKey.Idle))
             {
                 _runClipActive = false;
-                // 討伐成功後の立ち止まりは勝利ポーズ（非ループ＝決めポーズで止まる）
-                driver.Play(_victory ? Sample_PlayerModel.WinClipId : MotionClipId.Idle, 0.25f);
+                // 討伐成功後の立ち止まりは勝利ポーズ（非ループ＝決めポーズで止まる）。
+                // 非ループの Win は毎フレーム Play すると先頭で凍るため再生中は触らない
+                var idleClip = _victory ? Sample_PlayerModel.WinClipId : MotionClipId.Idle;
+                if (!driver.CurrentMotion.Equals(idleClip))
+                {
+                    driver.Play(idleClip, 0.25f);
+                }
             }
         }
 

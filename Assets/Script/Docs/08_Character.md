@@ -266,7 +266,7 @@ characters.Tick(deltaTime);   // → CurrentKey が Behavior#100 になり、0.3
 - **症状**: 攻撃ボタンを連打しても2発目がすぐ出ない。**原因**: `AttackBehavior` は未完了中の同キー再入を拒否します（`AllowsRefresh = false`）。**対処**: 正常仕様。連続攻撃はコンボ受付窓（`AvatarEventId.ComboWindowBegin/End`）を使った独自行動として設計します
 - **症状**: ガード中に攻撃キーが効かない。**原因**: `IntentProposal` がガード継続を行動要求より先に見る仕様。**対処**: ガードを離してから攻撃します（仕様変更はアプリ側の独自 Logic で）
 - **症状**: 被弾させたのに反映が1テンポ遅い気がする。**原因**: Hub 経由のリアクションは「Tick 中は保留・Tick 後一括適用」の2フェーズ。**対処**: 正常仕様（順序決定性の保護）。テスト・演出スクリプトで即時性が要る場合のみ `CharacterAgent.PostReaction` を直接呼びます（順序は自分で管理）
-- **症状**: 生成ステージの壁をキャラがすり抜ける。**原因**: 既定の移動解決は素通しの `DirectMotionSolver`。**対処**: `CharacterControllerMotionSolver` を `actor.MotionSolver` へ差します（[11_StageGen](11_StageGen.md)）
+- **症状**: 生成ステージの壁をキャラがすり抜ける。**原因**: 既定の移動解決は素通しの `DirectMotionSolver`。**対処**: コライダー＋Rigidbody の移動モーター（サンプルの `Sample_KinematicMotor`＝自前 collide-and-slide）を `actor.MotionSolver` へ差します（[11_StageGen](11_StageGen.md)）
 - **症状**: [T] で Actor を切り替えると行動がリセットされる。**原因**: 切替は「表現形態の交代」であり「行動の続行」ではない設計（位置・向きだけ `Pose.CopyFrom` で引き継ぐ）。**対処**: 仕様です
 
 ## 7. 増やす・拡張する
