@@ -68,11 +68,12 @@ Seed の各サンプル・各基盤を「どう起動し、どう使い、どう
 | 15 | [15_Pooling.md](15_Pooling.md) | オブジェクトプール（生成/破棄のコストと GC を抑える） |
 | 16 | [16_World.md](16_World.md) | 原点回帰（広大なフィールドでの座標精度の維持） |
 
-### 第7部 — 品質
+### 第7部 — 品質と運用
 
 | 章 | ガイド | 読むと分かること |
 |---|---|---|
 | 17 | [17_Tests.md](17_Tests.md) | 全テストの実行方法と「仕様書として読む」案内 |
+| 18 | [18_Libraries.md](18_Libraries.md) | 外部ライブラリ8種の役割・依存の鉄則・セットアップ |
 
 ## サンプル一覧（シーンに置く MonoBehaviour）
 
@@ -96,6 +97,8 @@ Seed の各サンプル・各基盤を「どう起動し、どう使い、どう
 | `Seed/Master Data Browser` | 全定義アセットの一覧・検証・空きID提案 | [07](07_Data.md) |
 | `Seed/Master Data Validate` | ウィンドウ無しの一括検証（Console 出力） | [07](07_Data.md) |
 | `Seed/Stage Palette` | 生成ステージのプレハブ↔役割の紐付け・検証 | [11](11_StageGen.md) |
+| `Seed/Master Data Bake` | マスターデータを MasterMemory バイナリへ焼く | [18](18_Libraries.md) |
+| `Seed/Setup/Install NuGet Packages` | NuGet ライブラリの一括セットアップ（依存解決込み） | [18](18_Libraries.md) |
 | `Window > General > Test Runner` | 全 EditMode テスト | [17](17_Tests.md) |
 
 ## 全章共通の前提・規約

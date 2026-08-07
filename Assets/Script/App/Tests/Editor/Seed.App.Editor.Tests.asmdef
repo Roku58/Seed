@@ -10,7 +10,8 @@
         "Seed.Core",
         "Seed.Core.Samples",
         "UnityEngine.TestRunner",
-        "UnityEditor.TestRunner"
+        "UnityEditor.TestRunner",
+        "Seed.Data"
     ],
     "includePlatforms": [
         "Editor"

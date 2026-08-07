@@ -1,11 +1,7 @@
 {
-    "name": "Seed.Flow",
-    "rootNamespace": "Seed.Flow",
-    "references": [
-        "Seed.Hub",
-        "Seed.Hub.Contracts",
-        "UniTask"
-    ],
+    "name": "Seed.Logging",
+    "rootNamespace": "Seed.Logging",
+    "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

@@ -1,12 +1,15 @@
 {
-    "name": "Seed.Flow",
-    "rootNamespace": "Seed.Flow",
+    "name": "Seed.Tools.Editor",
+    "rootNamespace": "Seed.Tools.Editor",
     "references": [
-        "Seed.Hub",
-        "Seed.Hub.Contracts",
-        "UniTask"
+        "NuGetForUnity",
+        "Seed.App",
+        "Seed.Data",
+        "Seed.Hub.Contracts"
     ],
-    "includePlatforms": [],
+    "includePlatforms": [
+        "Editor"
+    ],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,

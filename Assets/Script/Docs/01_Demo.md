@@ -35,7 +35,8 @@ Unity エディタの基本操作（シーンを開く・Play ボタン・Hierar
 
 | 部品 | 種別 | 役割 |
 |---|---|---|
-| `Sample_GameFlowRunner` | MonoBehaviour | 永続ルート。全基盤の生成と毎フレーム駆動。シーンに置く唯一の部品 |
+| `Sample_GameFlowRunner` | LifetimeScope（VContainer） | 永続ルート。「何を作り誰に渡すか」の宣言。シーンに置く唯一の部品 |
+| `Sample_GameLoop` | 純C#（エントリポイント） | 「どの順で初期化し毎フレーム何を回すか」。VContainer が PlayerLoop へ橋渡し |
 | `Sample_KeyboardReader` | 純C#（IInputReader） | キーボードの状態を InputSnapshot へ写すだけの最小リーダー |
 | `Sample_HomePhase` / `Sample_BattlePhase` / `Sample_ShopPhase` | 純C#（GamePhase 派生） | 各画面の合成ルート。OnEnter で組み OnExit で消す |
 | `Sample_PhaseIds` / `Sample_ActionIds` | 純C#（static） | フェーズID・独自アクションIDの発番台帳 |
@@ -53,7 +54,7 @@ Unity エディタの基本操作（シーンを開く・Play ボタン・Hierar
 InputRouter（エッジ検出: 押した瞬間/離した瞬間を判定）
    ▲ _input.Tick() は永続ルートが毎フレーム1回だけ呼ぶ
    │
-Sample_GameFlowRunner.Update()
+Sample_GameLoop.Tick()（VContainer の ITickable。→ 18_Libraries.md）
    ├─ _clock.Tick(Time.deltaTime)   … dt の供給源はここだけ
    ├─ _input.Tick()
    └─ _flow.Tick(_clock.UnscaledDelta)
@@ -106,7 +107,7 @@ _hub.PublishCommand(new ChangePhaseCommand(
 
 ### 実戦例: 最小構成の永続ルート
 
-自作ゲームの入口はこの骨格を写します（`Sample_GameFlowRunner` の縮約版。全API実在）。
+本物の `Sample_GameFlowRunner` は **VContainer の LifetimeScope 版**です（宣言＝Runner・駆動＝`Sample_GameLoop` の分業。→ [18_Libraries.md](18_Libraries.md)）。DI を使わずに最小で組むなら、以下の MonoBehaviour 骨格でも同じ基盤 API で動きます。
 
 ```csharp
 using Seed.App; using Seed.Clock; using Seed.Flow; using Seed.Hub; using Seed.Input;
@@ -162,7 +163,7 @@ public sealed class MyGameRoot : MonoBehaviour
 }
 ```
 
-本物の `Sample_GameFlowRunner` はここへ「カメラ・ライトの自動生成（`BuildCameraAndLight`）」が加わるだけです。
+本物はこの初期化・駆動・後始末を `Sample_GameFlowRunner`（宣言）と `Sample_GameLoop`（駆動）に分けて VContainer に載せたもので、役割は同じです。
 
 > ⚠️ `Sample_HomePhase` を使うなら `Sample_BattlePhase` の登録は必須です。ホームの [1][2][4][5] は
 > `ChangePhaseCommand(Battle, …)` を発行し、`GameFlow.RequestChange` は未登録フェーズに対して
@@ -186,6 +187,7 @@ public sealed class MyGameRoot : MonoBehaviour
 | [5] | Slot5（=33） | 出撃: 市街（204・自動生成 31×31） | - | - |
 | [G] | Guard | - | ガード（押している間） | - |
 | [T] | Next | - | 3D⇔2D Actor 切替 | - |
+| [C] | CycleView（=34） | - | 視点切替（TPS→FPS→俯瞰の巡回） | - |
 | [O] | Jump | - | 自動操縦の切替（AI 操作） | - |
 | [P] | Previous | - | ポーズ切替（ポーズ中も受付） | - |
 | [B] | Cancel | - | ホームへ戻る（決着後・ポーズ中も有効） | ホームへ戻る |

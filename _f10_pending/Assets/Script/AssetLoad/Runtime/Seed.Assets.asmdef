@@ -1,10 +1,11 @@
 {
-    "name": "Seed.Flow",
-    "rootNamespace": "Seed.Flow",
+    "name": "Seed.Assets",
+    "rootNamespace": "Seed.Assets",
     "references": [
-        "Seed.Hub",
-        "Seed.Hub.Contracts",
-        "UniTask"
+        "UniTask",
+        "UniTask.Addressables",
+        "Unity.Addressables",
+        "Unity.ResourceManager"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
