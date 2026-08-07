@@ -4,7 +4,11 @@ using UnityEngine;
 
 namespace Seed.App
 {
-    /// <summary>【サンプル】決着後のリザルト画面（表示のみの最小構成）。</summary>
+    /// <summary>
+    /// 【サンプル】決着後のリザルト画面。
+    /// 表示時に LitMotion のフェードイン（<see cref="Sample_FadeTransition"/>）が掛かる——
+    /// 遷移演出はコードから差し込む「艶」で、状態変更（OnShow）は演出を待たず先に走る。
+    /// </summary>
     public sealed class Sample_ResultScreen : UIScreen
     {
         /// <summary>この画面のID。</summary>
@@ -13,10 +17,19 @@ namespace Seed.App
         /// <summary>表示する結果テキスト（Runnerが決着時に設定する）。</summary>
         private string _resultText = "";
 
+        /// <summary>表示の不透明度（フェード演出が書き込む）。</summary>
+        private float _alpha = 1f;
+
         /// <summary>結果テキストを設定する。</summary>
         public void SetResult(string resultText)
         {
             _resultText = resultText;
+        }
+
+        /// <summary>表示演出: 0.35秒のフェードイン（LitMotion・コード制御）。</summary>
+        protected override IScreenTransition CreateShowTransition()
+        {
+            return new Sample_FadeTransition(0f, 1f, 0.35f, alpha => _alpha = alpha);
         }
 
         /// <summary>結果を大きく描画する。</summary>
@@ -27,7 +40,10 @@ namespace Seed.App
                 fontSize = 40,
                 alignment = TextAnchor.MiddleCenter,
             };
+            var color = GUI.color;
+            GUI.color = new Color(1f, 1f, 1f, _alpha);
             GUI.Label(new Rect(0f, 0f, Screen.width, Screen.height), _resultText, style);
+            GUI.color = color;
         }
     }
 }

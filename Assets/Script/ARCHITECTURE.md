@@ -24,6 +24,11 @@ Assets/Script/
 ├─ Persistence/ Seed.Persistence（FileSaveStore/SaveEnvelope。byte[]の安全な永続化）… Hubのみに依存・純C#
 ├─ Motion/      Seed.Motion（Playables直駆動のアニメ再生・姿勢/IK/揺れものリグ・‰イベント）
 │               … Seed.Characterに依存（艶レイヤー。AnimatorControllerアセット不要）
+├─ Cameras/     Seed.Cameras（視点IDでの切替・重ね合わせ。Cinemachine 3.1.7 を駆動）
+├─ Pooling/     Seed.Pooling（オブジェクトプール。二重返却は即例外・統計つき。依存なし）
+├─ World/       Seed.World（原点回帰。float精度の維持。判断=純C#/適用=MonoBehaviour）
+├─ Logging/     Seed.Logging（ZLogger のゼロアロケ構造化ログ。GameLog 窓口）
+├─ AssetLoad/   Seed.Assets（IAssetLoader 契約＋Addressables 実装。UniTask で await）
 ├─ StageGen/    Seed.StageGen（設計図生成パイプライン＋施工。迷路/街/テンプレ/バイオーム/配置）
 │               … Seed.Coreのみに依存（DeterministicRandom）。生成コアは純C#・施工だけUnity
 │               + Seed.StageGen.Editor（メニュー Seed/Stage Palette＝プレハブ↔役割の紐付けと検証）
@@ -238,6 +243,25 @@ OriginShiftSystem（適用と告知。Tickで判断＝原点は世界の状態�
   記録は絶対座標（ToAbsolute）で行うか、移動量も入力として記録する
 - 足IKの時間追従は「前フレームとの差」で動くため、シフト時は ResetFollow() で捨てる
 
+## 外部ライブラリの方針（依存の鉄則）
+
+採用: UniTask / VContainer / LitMotion / MasterMemory(+MessagePack) / Addressables+Smart Addresser /
+ZLogger / UnityDebugSheet / NuGetForUnity（詳細と使い方は `Docs/18_Libraries.md`）。
+
+**外部ライブラリはすべて「殻」の道具**。次の層は依存禁止を維持する（asmdef が強制）:
+
+| 層 | 外部依存 | 理由 |
+|---|---|---|
+| `Seed.Core`（GameCore） | 禁止 | 決定性の心臓部（async の再開フレームは非決定＝リプレイが壊れる） |
+| `Seed.Hub.Contracts` / `Seed.Persistence` | 禁止 | エンジン非依存の契約・封筒（ヘッドレス検証の要） |
+| その他基盤 | 必要最小限 | `Seed.Flow`→UniTask、`Seed.Assets`→UniTask+Addressables のみ |
+| App 層 | 自由 | VContainer・LitMotion・DebugSheet はここだけ |
+
+- DI（VContainer）が置き換えたのは合成ルートの new の配線だけ——通信は Hub、駆動順は
+  TickPipeline / `Sample_GameLoop` がこれまで通り持つ
+- マスターデータは「入力（SO/コード）→ ベイク（`Seed/Master Data Bake`）→
+  実行時は MasterMemory バイナリ」。`MasterDataSet` の契約は不変（背面の差し替え）
+
 ## キャラクター基盤（Seed.Character）のアクター制御アーキテクチャ
 
 CharactersManager（全体管理: 陣営の束・Tick順・名簿・リアクションの順序采配）
@@ -307,6 +331,8 @@ AiDirector（メタAI: 戦場全体の采配。指示書 AiOrders を配る＝�
 | 生成ステージの美術 | メニュー `Seed/Stage Palette` でプレハブを割り当て、`BuildPalette()` を渡す |
 | 揺れもの（髪・尻尾・マント） | ボーン列を SpringBoneRig へ渡し MotionRig.With で装着（球コライダー任意） |
 | UI部品（ボタン等） | SeedButton / SeedToggle / SeedSlider（uGUI継承。連打防止・IDisposable購読・SEフック内蔵） |
+| 非同期ロード | UniTask で書いて UniTaskFlowOperation / IAssetLoader に載せる（殻限定） |
+| ログ | GameLog.CreateLogger(基盤名) → ZLog 系で書く |
 | 地形の種類（洞窟・塔…） | IGenerationPass を1つ書いてパイプラインに Add |
 | 部屋・廊下の手作りユニット | RoomTemplate.Parse の文字列を1つ書いて TemplateRoomsPass へ |
 | ステージ素材（床・壁のアセット） | StageAssetPalette.Bind(バイオーム, セル, バリアント, プレハブ工場) を1行 |

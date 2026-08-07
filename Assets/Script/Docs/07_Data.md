@@ -280,6 +280,18 @@ asmdef 構成もこの分離を強制します: `Seed.Data`（Seed.Core のみ�
 > 制限する Unity の仕組み。ゲーム側アセンブリから Seed.Data を使うには asmdef の参照追加が
 > 必要です（Seed.App は追加済み）。
 
+### バイナリ運用（MasterMemory・実装済み）
+
+データが増えてきたら、実行時ロードを MasterMemory のバイナリへ切り替えられます（→ [18_Libraries.md](18_Libraries.md)）。
+
+1. メニュー **`Seed/Master Data Bake`** → `StreamingAssets/master.bytes` へ焼かれる
+2. 以後の Play はバイナリから読み込む（Console に「ベイク済みバイナリから読込」）
+3. コード直書きへ戻すのは **`Seed/Master Data Bake 削除`**
+
+`MasterDataSet` の契約（Get/TryGet/GetAll）は不変なので消費側は無変更——保存形式だけが
+背面（`Sample_MasterBinary`）で差し替わります。往復の正しさとベイクの決定性は
+`MasterBinaryTests` が保証しています。
+
 ## 6. よくあるつまずき
 
 - **症状**: `Add` で「定義 X のIDが不正: 0（1以上。0 は EntityRegistry.None の予約値）」
