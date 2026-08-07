@@ -6,7 +6,8 @@
         "Seed.Hub",
         "Seed.Hub.Contracts",
         "UnityEngine.TestRunner",
-        "UnityEditor.TestRunner"
+        "UnityEditor.TestRunner",
+        "UnityEngine.UI"
     ],
     "includePlatforms": [
         "Editor"
