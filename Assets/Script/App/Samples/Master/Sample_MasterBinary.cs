@@ -44,6 +44,14 @@ namespace Seed.App
             }
             builder.Append(stageRows);
 
+            var events = catalog.GetAll<Sample_EventSpec>();
+            var eventRows = new Sample_EventRow[events.Count];
+            for (var i = 0; i < events.Count; i++)
+            {
+                eventRows[i] = Sample_EventRow.From(events[i]);
+            }
+            builder.Append(eventRows);
+
             return builder.Build();
         }
 
@@ -57,6 +65,10 @@ namespace Seed.App
                 catalog.Add(row.ToSpec());
             }
             foreach (var row in database.Sample_StageRowTable.All)
+            {
+                catalog.Add(row.ToSpec());
+            }
+            foreach (var row in database.Sample_EventRowTable.All)
             {
                 catalog.Add(row.ToSpec());
             }

@@ -39,6 +39,8 @@ namespace Seed.App
             pressed = InputSnapshot.SetPressed(pressed, Sample_ActionIds.Slot4, keyboard.digit4Key.isPressed);
             pressed = InputSnapshot.SetPressed(pressed, Sample_ActionIds.Slot5, keyboard.digit5Key.isPressed);
             pressed = InputSnapshot.SetPressed(pressed, Sample_ActionIds.Slot6, keyboard.digit6Key.isPressed);
+            pressed = InputSnapshot.SetPressed(pressed, Sample_ActionIds.Slot7, keyboard.digit7Key.isPressed);
+            pressed = InputSnapshot.SetPressed(pressed, Sample_ActionIds.Slot8, keyboard.digit8Key.isPressed);
             pressed = InputSnapshot.SetPressed(pressed, Sample_ActionIds.CycleView, keyboard.cKey.isPressed);
             pressed = InputSnapshot.SetPressed(pressed, ActionId.Guard, keyboard.gKey.isPressed);
             pressed = InputSnapshot.SetPressed(pressed, ActionId.Next, keyboard.tKey.isPressed);

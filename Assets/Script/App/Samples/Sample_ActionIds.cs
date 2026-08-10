@@ -25,5 +25,11 @@ namespace Seed.App
 
         /// <summary>メニュー6番（[6]キー。揺れものデモへ出撃）。</summary>
         public static readonly ActionId Slot6 = new ActionId(37);
+
+        /// <summary>メニュー7番（[7]キー。イベントADV（3D）へ）。</summary>
+        public static readonly ActionId Slot7 = new ActionId(38);
+
+        /// <summary>メニュー8番（[8]キー。イベントADV（2D）へ）。</summary>
+        public static readonly ActionId Slot8 = new ActionId(39);
     }
 }

@@ -3,7 +3,7 @@
 // ゲーム全体のフロー（ホーム⇄戦闘⇄ショップ）を回す永続ルート（VContainer 版）。
 //
 // 空のGameObjectにアタッチしてPlayするだけで動く。
-//   ホーム : [1] 草原へ出撃 / [2] 火山へ出撃 / [3] ショップ / [4] 迷宮 / [5] 市街 / [6] 揺れものデモ
+//   ホーム : [1] 草原へ出撃 / [2] 火山へ出撃 / [3] ショップ / [4] 迷宮 / [5] 市街 / [6] 揺れものデモ / [7] イベントADV(3D) / [8] イベントADV(2D)
 //   戦闘   : WASD移動 / [1]攻撃 / [G]ガード / [T]3D⇔2D切替 / [C]視点切替 / [B]ホームへ
 //
 // [VContainer の役割分担]
@@ -52,6 +52,7 @@ namespace Seed.App
             builder.Register<Sample_HomePhase>(Lifetime.Singleton);
             builder.Register<Sample_BattlePhase>(Lifetime.Singleton);
             builder.Register<Sample_ShopPhase>(Lifetime.Singleton);
+            builder.Register<Sample_AdvEventPhase>(Lifetime.Singleton);
 
             // 駆動役（IStartable/ITickable/ILateTickable が PlayerLoop に載る）
             builder.RegisterEntryPoint<Sample_GameLoop>();

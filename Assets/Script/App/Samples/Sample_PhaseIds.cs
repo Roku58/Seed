@@ -13,5 +13,8 @@ namespace Seed.App
 
         /// <summary>ショップ。</summary>
         public static readonly PhaseId Shop = new PhaseId(3);
+
+        /// <summary>イベントADV（ショップ・会話イベント）。</summary>
+        public static readonly PhaseId Event = new PhaseId(4);
     }
 }

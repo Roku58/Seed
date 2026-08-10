@@ -30,6 +30,9 @@ namespace Seed.App
         /// <summary>仲介基盤: サービス台帳。</summary>
         private readonly ServiceRegistry _services;
 
+        /// <summary>ADVシグナル購読の後始末。</summary>
+        private IDisposable _advSignal;
+
         /// <summary>入力基盤（毎フレームここで1回だけ Tick）。</summary>
         private readonly InputRouter _input;
 
@@ -48,10 +51,14 @@ namespace Seed.App
         /// <summary>ショップフェーズ。</summary>
         private readonly Sample_ShopPhase _shop;
 
+        /// <summary>イベントADVフェーズ。</summary>
+        private readonly Sample_AdvEventPhase _adv;
+
         /// <summary>依存を受け取る（生成は VContainer が行う）。</summary>
         public Sample_GameLoop(MessageHub hub, ServiceRegistry services, InputRouter input,
             GameClock clock, GameFlow flow,
-            Sample_HomePhase home, Sample_BattlePhase battle, Sample_ShopPhase shop)
+            Sample_HomePhase home, Sample_BattlePhase battle, Sample_ShopPhase shop,
+            Sample_AdvEventPhase adv)
         {
             _hub = hub;
             _services = services;
@@ -61,6 +68,7 @@ namespace Seed.App
             _home = home;
             _battle = battle;
             _shop = shop;
+            _adv = adv;
         }
 
         /// <summary>起動: 初期化順が意味を持つものをここで一列に並べる。</summary>
@@ -74,9 +82,15 @@ namespace Seed.App
             _flow.AddPhase(_home);
             _flow.AddPhase(_battle);
             _flow.AddPhase(_shop);
+            _flow.AddPhase(_adv);
             _flow.Start(Sample_PhaseIds.Home);
 
             Sample_DebugPage.TryAttach(_hub, _services); // 開発用デバッグメニュー（エディタのみ）
+
+            // ADVの台本からの合図（Signal 演技）を購読する実例——ここに任意の処理を書ける
+            // （報酬付与・フラグ更新など。台本は合図を出すだけで、意味づけは購読側の方針）
+            _advSignal = _hub.Subscribe<Sample_AdvSignal>(signal =>
+                Debug.Log($"[Adv] シグナル受信: {signal.Key}（イベント {signal.EventId}）"));
         }
 
         /// <summary>毎フレーム: dt の加工が最初、フローはポーズ中も動かす。</summary>
@@ -96,6 +110,7 @@ namespace Seed.App
         /// <summary>終了: フローとクロックはコンテナが逆順 Dispose するため、ここではログだけ畳む。</summary>
         public void Dispose()
         {
+            _advSignal?.Dispose();
             GameLog.Shutdown();
         }
 

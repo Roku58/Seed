@@ -21,6 +21,7 @@
 | `Flow/` | `Seed.Flow` | GamePhase / GameFlow / ISceneLoader（フェーズ切替） | Hub・UniTask |
 | `Clock/` | `Seed.Clock` | 時間基盤（ポーズ/倍速/ヒットストップ＝dtの供給源。純C#） | Hub |
 | `AI/` | `Seed.AI` | キャラAI＋メタAI（AiBrain / AiDirector / InputEmulator） | Hub・Character |
+| `Adv/` | `Seed.Adv` | イベントADV進行（文字送り・ページ・選択肢・演技の台本。純C#） | なし |
 | `Persistence/` | `Seed.Persistence` | byte[] の安全な永続化（FileSaveStore / SaveEnvelope。純C#） | Hub |
 | `Motion/` | `Seed.Motion` | アニメ再生（Playables / Controller）・姿勢 / IK / 揺れもの・‰イベント | Character |
 | `Cameras/` | `Seed.Cameras` | 視点IDでカメラを指名（FPS/TPS切替＋演出カメラの重ね） | Hub・Cinemachine |
@@ -229,6 +230,25 @@ FootIkRig の構成（凹凸地形への追従）:
   記録は絶対座標（ToAbsolute）で行うか、移動量も入力として記録する
 - 足IKの時間追従は「前フレームとの差」で動くため、シフト時は ResetFollow() で捨てる
 
+## イベントADV基盤（Seed.Adv）——会話・ショップの進行
+
+- **AdvScript**（台本・純データ）… ページ列（本文・話者・見せ方・演技）＋末尾の選択肢。
+  マスターデータ・JSON・コード直書きのどれからでも組める
+- **AdvPlayer**（進行の状態機械）… Typing（文字送り）→ PageComplete（送り待ち）→
+  Choosing（選択肢）→ Finished（結果ID）。Tick で刻む純C#＝EditMode でテスト済み
+- 表示・入力・演技の実行は消費側（デモは `Sample_AdvEventPhase`）——
+  吹き出しは雛形の複製で0〜複数枚（3D=スクリーン投影 / 2D=立ち絵位置＋オフセット）、
+  選択カーソルの真実は EventSystem（Unity 標準のボタンナビゲーション）に一本化する
+- 演技（AdvAct）は移動・モーション・モデル読み替え・登場退場・吹き出し・カメラ
+  （手動移動 / Cinemachine 複数カメラの切替）・タイムライン起動・コードへの合図（Signal）。
+  寿命（時間・ページ切替・送り操作）と閉じ命令（BubbleClear/TimelineStop/CameraReset）を持つ
+- マスターデータから「1ページ=1タイムライン・束=ブック」を自動ビルド
+  （Seed/Adv Timeline Build）でき、以後はタイムライン再生が基本経路
+  （未ビルドはデータ直接実行へフォールバック）。舞台は 3D/2D をデータで選び、
+  UIのガワはプレハブ（Sample_AdvUiView）で差し替え、再生中の入力停止もデータで選ぶ
+- 分岐は Finished の結果ID（選択肢）または NextEventId（強制イベント）で
+  イベントIDを連鎖させる。意味づけはアプリの方針
+
 ## 外部ライブラリの方針（依存の鉄則）
 
 採用: UniTask / VContainer / LitMotion / MasterMemory(+MessagePack) / Addressables+Smart Addresser /
@@ -309,6 +329,7 @@ ZLogger / UnityDebugSheet / NuGetForUnity（詳細と使い方は `Docs/18_Libra
 | 移動の物理/経路制約 | IMotionSolver 実装を CharacterActor.MotionSolver へ差す（既定は素通し。CharacterController実装あり） |
 | セーブ・リプレイ保存 | byte[] にして ISaveStore（ServiceRegistry経由）へ。封筒検証・原子的書き込みは基盤持ち |
 | ステージ | StageSpec（マスターデータ）を1件足す → ChangePhaseCommand(Battle, stageId) で出撃 |
+| イベントADV（会話・ショップ） | `Sample_EventSpec` を1件足してベイク → ChangePhaseCommand(Event, eventId)（ページ・吹き出し・演技・分岐は全てデータ） |
 | モーション | MotionSet.Add 1行（クリップ＋‰イベント）。BehaviorKeyと番号を揃えれば対応表も不要 |
 | 姿勢・IK | LookAtRig / TwoBoneIkRig / ChainIkRig / FootIkRig を MotionRig.With で装着 |
 | 視点（FPS/TPS/演出） | CinemachineCamera を作り `CameraDirector.Register(ViewpointId, camera)` 1行。切替は命令1発 |
