@@ -1,6 +1,6 @@
 # 05. Seed.Input — 入力（Reader → Snapshot → Router → 意味づけ）
 
-[← 前: 04_Flow](04_Flow.md) | [索引](README.md) | [次: 06_UI →](06_UI.md)
+[← 前: 04_Flow](04_Flow.md) | [索引](00_Roadmap.md) | [次: 06_UI →](06_UI.md)
 
 ## この章で分かること
 
@@ -256,4 +256,4 @@ Reader には触りません。各フェーズ（`Sample_HomePhase` / `Sample_Ba
 - `Assets/Script/App/Samples/Sample_GameFlowRunner.cs` — 永続ルート（`InputRouter` の配線と Tick の唯一の呼び元）
 - テスト: `Assets/Script/Input/Tests/Editor/InputRouterTests.cs`（EditMode 9件）＋ `FakeInputReader.cs` — Window > General > Test Runner の EditMode で実行
 
-[← 前: 04_Flow](04_Flow.md) | [索引](README.md) | [次: 06_UI →](06_UI.md)
+[← 前: 04_Flow](04_Flow.md) | [索引](00_Roadmap.md) | [次: 06_UI →](06_UI.md)

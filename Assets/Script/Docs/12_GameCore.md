@@ -1,6 +1,6 @@
 # 12. GameCore — 決定的ロジックとリプレイ
 
-[← 前: 11_StageGen](11_StageGen.md) | [索引](README.md) | [次: 13_Persistence →](13_Persistence.md)
+[← 前: 11_StageGen](11_StageGen.md) | [索引](00_Roadmap.md) | [次: 13_Persistence →](13_Persistence.md)
 
 ## この章で分かること
 
@@ -340,4 +340,4 @@ GameCore は Hub すら参照しません（純度維持）。接続は App 層�
 - `Assets/Script/App/CoreHubBridge.cs` — Hub ⇔ 決定的世界の双方向翻訳
 - テスト: `Assets/Script/GameCore/Tests/Editor/Samples/SampleIntegrationTests.cs`（同一シードの一致・リプレイ再現）/ `Assets/Script/GameCore/Tests/Editor/Core/SnapshotReplayTests.cs`（`byte[]` 往復・版数拒否・ID の登録順非依存）/ `Assets/Script/GameCore/Tests/Editor/Samples/FuzzTests.cs`（ランダム 120 入力 × 5 シードで常に一致）/ `Assets/Script/App/Tests/Editor/FoundationTests.cs`（記録が実行より先）
 
-[← 前: 11_StageGen](11_StageGen.md) | [索引](README.md) | [次: 13_Persistence →](13_Persistence.md)
+[← 前: 11_StageGen](11_StageGen.md) | [索引](00_Roadmap.md) | [次: 13_Persistence →](13_Persistence.md)

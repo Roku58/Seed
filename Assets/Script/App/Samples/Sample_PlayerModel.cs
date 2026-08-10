@@ -19,7 +19,7 @@ namespace Seed.App
     ///
     /// [揺れものについて] UnityChan の髪（HairTail/HairSide/HairFront）・リボン・スカート・袖は
     /// Humanoid クリップに焼かれていない揺れもの専用ボーン——Seed.Motion の SpringBoneRig が
-    /// そのまま駆動できる（同梱の SpringBone スクリプトは削除済み。基盤側で揺らす）。
+    /// そのまま駆動できる（揺れは基盤の SpringBoneRig が担う）。
     /// </summary>
     public sealed class Sample_PlayerModel
     {

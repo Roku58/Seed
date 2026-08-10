@@ -1,6 +1,6 @@
 # 03. Seed.Clock — ゲーム時間の供給源（ポーズ・倍速・ヒットストップ）
 
-[← 前: 02_Hub](02_Hub.md) | [索引](README.md) | [次: 04_Flow →](04_Flow.md)
+[← 前: 02_Hub](02_Hub.md) | [索引](00_Roadmap.md) | [次: 04_Flow →](04_Flow.md)
 
 ## この章で分かること
 
@@ -303,4 +303,4 @@ _hub.PublishCommand(new SetTimeScaleCommand(0.1f)); // 任意のキーでスロ�
 
 > 📖 **用語 — EditMode テスト**: Unity Test Runner のうち、エディタの再生（Play）を伴わずに実行されるテスト。`MonoBehaviour` に依存しない純C#のコードなら、通常の NUnit テストと同じ速度で回せます。
 
-[← 前: 02_Hub](02_Hub.md) | [索引](README.md) | [次: 04_Flow →](04_Flow.md)
+[← 前: 02_Hub](02_Hub.md) | [索引](00_Roadmap.md) | [次: 04_Flow →](04_Flow.md)

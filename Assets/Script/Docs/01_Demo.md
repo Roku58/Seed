@@ -1,6 +1,6 @@
 # 01. 統合デモの起動と操作 — まず動かして全体像を掴む
 
-[← 前: README](README.md) | [索引](README.md) | [次: 02_Hub →](02_Hub.md)
+[← 前: 00_Roadmap](00_Roadmap.md) | [索引](00_Roadmap.md) | [次: 02_Hub →](02_Hub.md)
 
 ## この章で分かること
 
@@ -259,4 +259,4 @@ Play すると `Start` で永続ルートが組まれ、以降は毎フレーム
 - `Assets/Scenes/SampleScene.unity` — 起動用シーン（Runner は未配置）
 - テスト: `Assets/Script/App/Tests/Editor/`（FoundationTests / HubIntegrationTests / EnemyTimerLogicTests）。実行方法は [17_Tests.md](17_Tests.md)
 
-[← 前: README](README.md) | [索引](README.md) | [次: 02_Hub →](02_Hub.md)
+[← 前: 00_Roadmap](00_Roadmap.md) | [索引](00_Roadmap.md) | [次: 02_Hub →](02_Hub.md)

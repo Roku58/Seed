@@ -1,5 +1,5 @@
 # 04. Seed.Flow — フェーズ遷移とステージ切替
-[← 前: 03_Clock](03_Clock.md) | [索引](README.md) | [次: 05_Input →](05_Input.md)
+[← 前: 03_Clock](03_Clock.md) | [索引](00_Roadmap.md) | [次: 05_Input →](05_Input.md)
 
 ## この章で分かること
 
@@ -389,4 +389,4 @@ private async UniTask LoadStageAsync(int payload)
   「次 Tick で入場」「同一フェーズ再入で完全な Exit→Enter」「ロード完了まで Tick 停止」
   「フェーズ Tick 中の要求は遅延」「未登録IDは例外」「Dispose で退場」を純C#で検証（[17_Tests.md](17_Tests.md)）
 
-[← 前: 03_Clock](03_Clock.md) | [索引](README.md) | [次: 05_Input →](05_Input.md)
+[← 前: 03_Clock](03_Clock.md) | [索引](00_Roadmap.md) | [次: 05_Input →](05_Input.md)

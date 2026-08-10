@@ -1,6 +1,6 @@
 # 02. Seed.Hub — 基盤同士が互いを知らずに会話するためのメッセージ基盤
 
-[← 前: 01_Demo](01_Demo.md) | [索引](README.md) | [次: 03_Clock →](03_Clock.md)
+[← 前: 01_Demo](01_Demo.md) | [索引](00_Roadmap.md) | [次: 03_Clock →](03_Clock.md)
 
 ## この章で分かること
 
@@ -347,4 +347,4 @@ if (_services.TryResolve<ICharacterQuery>(out var query)
 - テスト: `Assets/Script/Hub/Tests/Editor/HubTests.cs`（基本動作）・`HubGuaranteeTests.cs`（発行中の変更・例外隔離・
   Pump などの保証）・`RequestResponseTests.cs`（RequestId 相関）
 
-[← 前: 01_Demo](01_Demo.md) | [索引](README.md) | [次: 03_Clock →](03_Clock.md)
+[← 前: 01_Demo](01_Demo.md) | [索引](00_Roadmap.md) | [次: 03_Clock →](03_Clock.md)

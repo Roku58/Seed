@@ -1,6 +1,6 @@
 # 15. Seed.Pooling — オブジェクトプール（生成/破棄のコストと GC を抑える)
 
-[← 前: 14_Cameras](14_Cameras.md) | [索引](README.md) | [次: 16_World →](16_World.md)
+[← 前: 14_Cameras](14_Cameras.md) | [索引](00_Roadmap.md) | [次: 16_World →](16_World.md)
 
 ## この章で分かること
 
@@ -124,4 +124,4 @@ pool.Return(req);          // OnReturn で自分の状態を捨てる（リセ�
 - デモ統合: `Sample_BattlePhase.cs` の `BuildPools` / `SpawnHitEffect` / `UpdateEffects`
 - テスト: `Assets/Script/Pooling/Tests/Editor/PoolingTests.cs`（15件——再利用・二重返却・上限・統計・台帳）
 
-[← 前: 14_Cameras](14_Cameras.md) | [索引](README.md) | [次: 16_World →](16_World.md)
+[← 前: 14_Cameras](14_Cameras.md) | [索引](00_Roadmap.md) | [次: 16_World →](16_World.md)

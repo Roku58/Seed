@@ -1,6 +1,6 @@
 # 09. Seed.Motion — アニメ・IK・揺れもの
 
-[← 前: 08_Character](08_Character.md) | [索引](README.md) | [次: 10_AI →](10_AI.md)
+[← 前: 08_Character](08_Character.md) | [索引](00_Roadmap.md) | [次: 10_AI →](10_AI.md)
 
 ## この章で分かること
 
@@ -325,4 +325,4 @@ arm.SetTarget(enemyPosition + Vector3.up * 0.6f);
 - `Assets/Script/App/Samples/Sample_BattlePhase.cs` — デモ装着（AttachDemoMotionRig / UpdateDemoRig）
 - テスト: `Assets/Script/Motion/Tests/Editor/MotionTests.cs` — IK 解析解・‰イベント（ループ折り返し含む）・揺れの数値検証。ソルバーと CrossfadeState が純C#だから EditMode で検証できます
 
-[← 前: 08_Character](08_Character.md) | [索引](README.md) | [次: 10_AI →](10_AI.md)
+[← 前: 08_Character](08_Character.md) | [索引](00_Roadmap.md) | [次: 10_AI →](10_AI.md)

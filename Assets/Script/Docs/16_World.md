@@ -1,6 +1,6 @@
 # 16. Seed.World — 原点回帰（広大なフィールドでの座標精度の維持）
 
-[← 前: 15_Pooling](15_Pooling.md) | [索引](README.md) | [次: 17_Tests →](17_Tests.md)
+[← 前: 15_Pooling](15_Pooling.md) | [索引](00_Roadmap.md) | [次: 17_Tests →](17_Tests.md)
 
 ## この章で分かること
 
@@ -130,4 +130,4 @@ var shifted = system.Shifter.ToShifted(savedPosition);     // 復元時はその
 - デモ統合: `Sample_BattlePhase.cs` の `BuildOriginShift` / `ShiftOwnCoordinates`
 - テスト: `Assets/Script/World/Tests/Editor/OriginShiftTests.cs`（8件——閾値・丸め・累積・往復・純度）
 
-[← 前: 15_Pooling](15_Pooling.md) | [索引](README.md) | [次: 17_Tests →](17_Tests.md)
+[← 前: 15_Pooling](15_Pooling.md) | [索引](00_Roadmap.md) | [次: 17_Tests →](17_Tests.md)

@@ -1,6 +1,6 @@
 # 14. Seed.Cameras — カメラ制御（FPS/TPS 切替・複数カメラの管理と合成）
 
-[← 前: 13_Persistence](13_Persistence.md) | [索引](README.md) | [次: 15_Pooling →](15_Pooling.md)
+[← 前: 13_Persistence](13_Persistence.md) | [索引](00_Roadmap.md) | [次: 15_Pooling →](15_Pooling.md)
 
 ## この章で分かること
 
@@ -148,4 +148,4 @@ _cameraDirector.SetBase(ViewpointId.ThirdPerson, blendSeconds: 0f);
 - デモ統合: `Assets/Script/App/Samples/Sample_BattlePhase.cs` の `BuildCameras`
 - テスト: `Assets/Script/Cameras/Tests/Editor/CameraTests.cs`（視点スタック10件）
 
-[← 前: 13_Persistence](13_Persistence.md) | [索引](README.md) | [次: 15_Pooling →](15_Pooling.md)
+[← 前: 13_Persistence](13_Persistence.md) | [索引](00_Roadmap.md) | [次: 15_Pooling →](15_Pooling.md)

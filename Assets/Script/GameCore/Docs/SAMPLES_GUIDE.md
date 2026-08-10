@@ -1,7 +1,7 @@
 # サンプル読解ガイド（SAMPLES_GUIDE）
 
 各サンプルの「目的・読み進め方・処理の流れ・ゲーム開発への活かし方・拡張案」をまとめる。
-**サンプルを追加・変更したら、必ず本ファイルも更新すること**（README §9 の規約）。
+**サンプルを追加・変更したら、必ず本ファイルも更新すること**（DESIGN_NOTES §9 の規約）。
 
 読む前提: `STARTUP_GUIDE.md` で基盤の5つの登場人物（LogicContext / Section / イベント＋ハンドラー / RecordLog / 支援部品）を把握していること。
 
@@ -164,7 +164,7 @@ CharacterDamaged → 方針 → PlayReactionCommand → キャラのけぞり �
 
 ## サンプル追加時のチェックリスト（保守ルール）
 
-1. `Sample_` プレフィックス・1クラス1ファイル・役割フォルダ・全メンバーdoc（README §9）
+1. `Sample_` プレフィックス・1クラス1ファイル・役割フォルダ・全メンバーdoc（DESIGN_NOTES §9）
 2. ロジックに手を入れたら決定性テスト（同一シード2回実行）を確認
 3. 本ファイルに「目的／読み進め方／処理の流れ／活かし方／拡張案」を追記
-4. README §6 の一覧と IMPLEMENTATION_GUIDE §15 の対応表を更新
+4. DESIGN_NOTES §6 の一覧と IMPLEMENTATION_GUIDE §15 の対応表を更新

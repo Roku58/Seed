@@ -151,7 +151,7 @@ namespace Seed.App
         {
             _movedThisTick = true;
 
-            // 2D立ち絵へ切替中（実体が非アクティブ）は素通し（従来仕様の踏襲）。
+            // 2D立ち絵へ切替中（実体が非アクティブ）は素通し。
             // 予約は捨てる——2D中に押した Space を3D復帰の初回 Move で暴発させない
             if (_capsule == null || !_capsule.gameObject.activeInHierarchy)
             {

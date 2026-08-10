@@ -1,6 +1,6 @@
 # 11. Seed.StageGen — ステージ自動生成（迷路・街・配置）
 
-[← 前: 10_AI](10_AI.md) | [索引](README.md) | [次: 12_GameCore →](12_GameCore.md)
+[← 前: 10_AI](10_AI.md) | [索引](00_Roadmap.md) | [次: 12_GameCore →](12_GameCore.md)
 
 ## この章で分かること
 
@@ -386,4 +386,4 @@ for (var i = 0; i < problems.Count; i++)
 - `Assets/Script/App/Samples/Sample_MasterCatalog.cs` / `Sample_StageSpec.cs` — ステージ定義（迷宮 203 / 市街 204）
 - テスト: `Assets/Script/StageGen/Tests/Editor/StageGenTests.cs` — 決定性（3 レイヤー＋配置の完全一致）・全域連結・braid の効果・道路と出入口・距離帯・重み抽選・テンプレ連結性・Fork の独立性・`GridToWorld`。生成が純C#だから EditMode で全部検証できます
 
-[← 前: 10_AI](10_AI.md) | [索引](README.md) | [次: 12_GameCore →](12_GameCore.md)
+[← 前: 10_AI](10_AI.md) | [索引](00_Roadmap.md) | [次: 12_GameCore →](12_GameCore.md)

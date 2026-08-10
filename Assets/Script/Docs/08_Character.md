@@ -1,6 +1,6 @@
 # 08. Seed.Character — アクター制御 — 真実は純C#、表示は写し
 
-[← 前: 07_Data](07_Data.md) | [索引](README.md) | [次: 09_Motion →](09_Motion.md)
+[← 前: 07_Data](07_Data.md) | [索引](00_Roadmap.md) | [次: 09_Motion →](09_Motion.md)
 
 ## この章で分かること
 
@@ -291,4 +291,4 @@ characters.Tick(deltaTime);   // → CurrentKey が Behavior#100 になり、0.3
 - `Assets/Script/Character/Runtime/Avatar/` — `IAvatar` / `Avatar3D` / `Avatar2D` / `NullAvatar` / `CharacterControllerMotionSolver`
 - テスト: `Assets/Script/Character/Tests/Editor/`（`BehaviorTransitionTests` = 裁定規則、`AgentReactionTests` = リアクション、`ActorSwitchTests` = 切替、`CharacterRegistryTests` / `CharacterSystemTests` / `ManualLogicTests`。`FakeAvatar` が表示なし検証の道具）
 
-[← 前: 07_Data](07_Data.md) | [索引](README.md) | [次: 09_Motion →](09_Motion.md)
+[← 前: 07_Data](07_Data.md) | [索引](00_Roadmap.md) | [次: 09_Motion →](09_Motion.md)

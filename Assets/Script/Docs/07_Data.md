@@ -1,6 +1,6 @@
 # 07. Seed.Data — マスターデータ（数値・定義データの一元管理）
 
-[← 前: 06_UI](06_UI.md) | [索引](README.md) | [次: 08_Character →](08_Character.md)
+[← 前: 06_UI](06_UI.md) | [索引](00_Roadmap.md) | [次: 08_Character →](08_Character.md)
 
 ## この章で分かること
 
@@ -333,4 +333,4 @@ asmdef 構成もこの分離を強制します: `Seed.Data`（Seed.Core のみ�
 テスト: `Assets/Script/Data/Tests/Editor/MasterDataTests.cs`（EditMode 4件。Window > General > Test Runner の EditMode タブから実行）
 — Catalog_AddGetGetAll_Works / ValidateGlobalIdUniqueness_DetectsCrossTypeDuplicates / RegisterAll_PutsDefinitionsIntoRegistryWithStableIds / RegisterAll_RejectsDuplicateIds_BeforeTouchingRegistry
 
-[← 前: 06_UI](06_UI.md) | [索引](README.md) | [次: 08_Character →](08_Character.md)
+[← 前: 06_UI](06_UI.md) | [索引](00_Roadmap.md) | [次: 08_Character →](08_Character.md)

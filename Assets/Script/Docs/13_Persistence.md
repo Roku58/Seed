@@ -1,6 +1,6 @@
 # 13. Seed.Persistence — セーブ/ロード（`byte[]` を壊さずディスクへ置く）
 
-[← 前: 12_GameCore](12_GameCore.md) | [索引](README.md) | [次: 14_Tests →](17_Tests.md)
+[← 前: 12_GameCore](12_GameCore.md) | [索引](00_Roadmap.md) | [次: 14_Tests →](17_Tests.md)
 
 ## この章で分かること
 
@@ -299,4 +299,4 @@ if (replay != null)
 - `Assets/Script/Hub/Runtime/ServiceRegistry.cs` — 貸し出し台帳（`Register` / `Resolve` / `TryResolve`）
 - テスト: `Assets/Script/Persistence/Tests/Editor/SaveStoreTests.cs` — EditMode 6 件（封筒往復・破損拒否・往復と削除・ディスク破損検知・不正 key 拒否・メモリ実装の契約一致）。エンジン非依存なので Play 不要で回ります
 
-[← 前: 12_GameCore](12_GameCore.md) | [索引](README.md) | [次: 14_Tests →](17_Tests.md)
+[← 前: 12_GameCore](12_GameCore.md) | [索引](00_Roadmap.md) | [次: 14_Tests →](17_Tests.md)

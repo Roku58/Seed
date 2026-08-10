@@ -1,7 +1,7 @@
 # GameCore スタートアップガイド
 
 新しくこの基盤を触る人向けの「最短で動かして、最小のゲームを載せる」ための手引き。
-仕様の詳細やパターン集は `IMPLEMENTATION_GUIDE.md`、経緯・設計原則は `README.md` を参照。
+仕様の詳細やパターン集は `IMPLEMENTATION_GUIDE.md`、経緯・設計原則は `DESIGN_NOTES.md` を参照。
 
 ---
 
@@ -138,7 +138,7 @@ namespace MyGame.Treasure
 - `IMPLEMENTATION_GUIDE.md` … 全機能のパターン集（乱数規約・巻き戻し・リプレイ・優先度…）
 - `Samples/CommandBattle/Sample_CommandBattleDemo.cs` … 合成ルートの実例（参照方式レコード＋巻き戻し）
 - `Samples/ActionBattle/Sample_ActionBattleDemo.cs` … ID方式レコード＋リプレイ検証の実例
-- `README.md` … 経緯・設計原則・CEDEC講演の要点・TODO
+- `DESIGN_NOTES.md` … 経緯・設計原則・CEDEC講演の要点・TODO
 
 ## 6. FAQ
 
