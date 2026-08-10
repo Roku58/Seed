@@ -16,5 +16,11 @@ namespace Seed.App
 
         /// <summary>[C] 視点切替（TPS→FPS→俯瞰の巡回。カメラ基盤への命令に使う）。</summary>
         public static readonly ActionId CycleView = new ActionId(34);
+
+        /// <summary>[O] 自動操縦の切替（標準の Jump をジャンプ本来の用途へ返すため分離）。</summary>
+        public static readonly ActionId Autopilot = new ActionId(35);
+
+        /// <summary>[Shift] 歩き（押している間は移動強度を落とす。TPSの標準操作）。</summary>
+        public static readonly ActionId Walk = new ActionId(36);
     }
 }
