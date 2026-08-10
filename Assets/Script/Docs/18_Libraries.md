@@ -1,6 +1,6 @@
 # 18. 外部ライブラリ — 採用一覧・依存の鉄則・セットアップ
 
-[← 前: 17_Tests](17_Tests.md) | [索引](00_Roadmap.md) | [次: 索引へ戻る →](00_Roadmap.md)
+[← 前: 17_Tests](17_Tests.md) | [索引](00_Roadmap.md) | [次: 19_Adv →](19_Adv.md) | [次: 索引へ戻る →](00_Roadmap.md)
 
 ## この章で分かること
 
@@ -162,4 +162,4 @@ logger.ZLogInformation($"敵を撃破: id={enemyId.Value}");
   `Sample_FadeTransition.cs` / `Sample_DebugPage.cs` / `Samples/Master/`（テーブルとベイク）
 - テスト: `Assets/Script/App/Tests/Editor/MasterBinaryTests.cs`（バイナリ往復・ベイクの決定性）
 
-[← 前: 17_Tests](17_Tests.md) | [索引](00_Roadmap.md)
+[← 前: 17_Tests](17_Tests.md) | [索引](00_Roadmap.md) | [次: 19_Adv →](19_Adv.md)

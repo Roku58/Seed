@@ -57,6 +57,8 @@ namespace Seed.App
                 $"[4] 出撃: {stage3.DisplayName}",
                 $"[5] 出撃: {stage4.DisplayName}",
                 $"[6] 出撃: {stage5.DisplayName}",
+                "[7] イベント: よろず屋（ADV・3D）",
+                "[8] イベント: 幕間の会話（ADV・2D）",
             };
         }
 
@@ -91,6 +93,16 @@ namespace Seed.App
             {
                 _hub.PublishCommand(new ChangePhaseCommand(
                     Sample_PhaseIds.Battle, Sample_MasterCatalog.Stage5.Value));
+            }
+            else if (_input.WasPressedThisFrame(Sample_ActionIds.Slot7)) // [7]
+            {
+                _hub.PublishCommand(new ChangePhaseCommand(
+                    Sample_PhaseIds.Event, Sample_MasterCatalog.EventShop));
+            }
+            else if (_input.WasPressedThisFrame(Sample_ActionIds.Slot8)) // [8]
+            {
+                _hub.PublishCommand(new ChangePhaseCommand(
+                    Sample_PhaseIds.Event, Sample_MasterCatalog.EventTalk2D));
             }
         }
 

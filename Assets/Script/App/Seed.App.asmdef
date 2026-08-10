@@ -27,7 +27,9 @@
         "LitMotion",
         "Seed.Logging",
         "Seed.Assets",
-        "UnityDebugSheet"
+        "UnityDebugSheet",
+        "Seed.Adv",
+        "Unity.Timeline"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

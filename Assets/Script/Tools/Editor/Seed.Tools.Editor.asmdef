@@ -5,7 +5,9 @@
         "NuGetForUnity",
         "Seed.App",
         "Seed.Data",
-        "Seed.Hub.Contracts"
+        "Seed.Hub.Contracts",
+        "Unity.Timeline",
+        "Seed.Adv"
     ],
     "includePlatforms": [
         "Editor"
