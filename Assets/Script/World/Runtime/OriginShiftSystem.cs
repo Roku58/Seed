@@ -132,6 +132,10 @@ namespace Seed.World
                     _roots[i].position += delta;
                 }
             }
+            // Transform の一括移動を物理へ即時同期する（本プロジェクトは AutoSyncTransforms=0）。
+            // これが無いと次の物理ステップまでキャスト・オーバーラップが旧座標＝最大45m
+            // ズレた世界を見てしまい、接地・壁判定・足IKレイが1フレーム空振りする
+            Physics.SyncTransforms();
             for (var i = 0; i < _handlers.Count; i++)
             {
                 _handlers[i].OnOriginShifted(delta);

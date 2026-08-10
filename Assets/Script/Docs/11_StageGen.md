@@ -16,7 +16,7 @@
 
 - [04_Flow](04_Flow.md) — **フェーズ**の入場・退場。ステージの生成と施工はフェーズ入場時に 1 回だけ走り、退場時に親 GameObject ごと破棄されます
 - [07_Data](07_Data.md) — **マスターデータ**と ID 運用。「ステージを増やす = `Sample_StageSpec` を 1 件足す」の作法、ステージ ID は 201 番から
-- [08_Character](08_Character.md) — **ActorPose** と **IMotionSolver**。生成した壁が実際に移動を遮るのは、ユニットに `CharacterController` と `CharacterControllerMotionSolver` を装着したときだけです
+- [08_Character](08_Character.md) — **ActorPose** と **IMotionSolver**。生成した壁が実際に移動を遮るのは、ユニットにカプセルコライダー＋Rigidbody の移動モーター（サンプルの `Sample_KinematicMotor`）を装着したときだけです
 
 乱数 `DeterministicRandom`（xorshift32・`Seed.Core` 名前空間）はロジック基盤の道具で、詳細は [12_GameCore](12_GameCore.md) で扱います。本章では「同じシードなら同じ列が出る」「`Fork()` で独立した子ストリームを切り出せる」の 2 点だけ使います。
 
@@ -113,7 +113,7 @@ parent Transform 配下の GameObject 群（フェーズ退場時に親ごと De
    - **マーカー**: 緑＝出口（開始地点からの BFS 最遠点）、紫＝宝箱 3 個（宝物庫テンプレートに内包された 2 個＋乱択の 1 個）
    - **カメラ**: ステージ寸法（`max(幅, 高さ) × 1.5`）に合わせた俯瞰へ自動移動
    - **Console**: 正常時は何も出ません
-6. **[W][A][S][D]** で移動する。壁に当たって止まる（生成ステージのユニットには `CharacterController` が装着されているため）
+6. **[W][A][S][D]** で移動する。壁に当たって止まる（生成ステージのユニットにはカプセルコライダー＋自前の移動モーターが装着されているため）
 7. **紫マーカー**を踏む → 鬼人薬（攻撃 +15・20000ms）が発動し、そのマーカーだけ消える（1 回限り）
 8. **緑マーカー**を踏む → ホーム画面へ帰還
 9. **[5] キー**（出撃: 市街）を押す。31×31・シード 904 の街が生成されます
@@ -238,7 +238,7 @@ new StageBuilder(palette)
 // --- 5) ユニットは設計図のスポーン点へ。壁があるので当たりを装着する ---
 blueprint.TryFindPlacement(PlacementKind.PlayerSpawn, out var playerSpawn);
 BuildPlayerUnit(spec, blueprint.GridToWorld(playerSpawn.X, playerSpawn.Y) + Vector3.up,
-    attachBody: true);   // attachBody = CharacterController + CharacterControllerMotionSolver
+    attachBody: true);   // attachBody = CapsuleCollider ＋ kinematic Rigidbody ＋ 自前モーター
 ```
 
 市街側は下地と骨格のパスだけが違います（`FillPass(CellType.Floor)` → `BspDistrictPass(minDistrictSize: 7)` → `BuildingPlacementPass()` → `BiomeAssignPass.RegionBased(ResidentialBiome, MarketBiome)` → … → `LandmarkPlacementPass(PlacementKind.Shop, 0, LandmarkRule.RegionCenter, MarketBiome)`）。**施工側のコードは 1 行も変わりません**——設計図の形式が同じだからです。
@@ -336,7 +336,7 @@ for (var i = 0; i < problems.Count; i++)
 
 ### 三大規約との関係
 
-- **状態は Tick、艶は Update**: 生成と施工はフェーズ入場時の 1 回だけで、毎フレームの処理ではありません。そのうえで、設計図は「艶」だけの持ち物ではない点が重要です。`Placements` の座標は `GridToWorld` を通ってユニットの初期 `Pose`（Tick 側の真実）になり、壁・建物のコライダーは `CharacterControllerMotionSolver` 経由で Tick 側の移動解決に効きます。トリガーの踏み判定も `TickPhase.Drain` に登録された純C#の距離判定（0.8m・XZ 平面）で、コライダーには依存しません。純粋に「艶」なのは `StageAssetPalette` が決める見た目（プレハブ・色）だけで、そこを差し替えてもロジックは 1 ビットも動きません。
+- **状態は Tick、艶は Update**: 生成と施工はフェーズ入場時の 1 回だけで、毎フレームの処理ではありません。そのうえで、設計図は「艶」だけの持ち物ではない点が重要です。`Placements` の座標は `GridToWorld` を通ってユニットの初期 `Pose`（Tick 側の真実）になり、壁・建物のコライダーは移動モーター（`Sample_KinematicMotor` の collide-and-slide）経由で Tick 側の移動解決に効きます。トリガーの踏み判定も `TickPhase.Drain` に登録された純C#の距離判定（0.8m・XZ 平面）で、コライダーには依存しません。純粋に「艶」なのは `StageAssetPalette` が決める見た目（プレハブ・色）だけで、そこを差し替えてもロジックは 1 ビットも動きません。
 - **方針は App**: どのパスをどの順で積むか、帯の境界を何‰にするか、どの色・プレハブを `Bind` するか、緑を踏んだら何が起きるかは、すべて App（`Sample_BattlePhase.BuildMazePipeline` / `BuildTownPipeline` / `BuildPalette` / `MakeTrigger`）が決めています。基盤側のパスとビルダーは実行部に徹します。
 - **命令の処理者は 1 基盤**: 出口を踏んだとき StageGen 側はフェーズを変えません。App が `ChangePhaseCommand` を Hub へ発行し、処理者は Flow 基盤ただ 1 つです。生成基盤が画面遷移や戦闘状態に直接触らないので、「なぜホームに戻ったか」の答えは常に Flow の命令ログに残ります。
 
@@ -353,7 +353,7 @@ for (var i = 0; i < problems.Count; i++)
 - **症状**: 手作り部屋がステージに現れない → **原因**: 既存区画と余白 1 で重なる位置ばかり引いた、またはテンプレートがグリッドに入らない（設計上、置けなければ静かに諦める） → **対処**: `attemptsPerTemplate` を増やす、グリッドを広げる、テンプレートを小さくする
 - **症状**: バイオームが塗られない・帯が意図とずれる → **原因**: `BiomeAssignPass` を `PlayerSpawnPass` より前に積んだため、起点が「走査順で最初の歩行可能セル」に落ちた → **対処**: 起点に依存するパス（距離帯バイオーム・敵配置・最遠点）は `PlayerSpawnPass` の**後**に積む
 - **症状**: 敵が 1 体も置かれない → **原因**: 指定した距離帯（下限‰〜上限‰）に入る空きセルが無い → **対処**: 帯を広げる、または `count` を減らす
-- **症状**: プレイヤーが壁を通り抜ける → **原因**: ユニットに当たりを装着していない（`attachBody: false`） → **対処**: 生成ステージでは `CharacterController` ＋ `CharacterControllerMotionSolver` を装着する（`Sample_BattlePhase.AttachBody` 参照。平地ステージでは付けません）
+- **症状**: プレイヤーが壁を通り抜ける → **原因**: ユニットに当たりを装着していない（`attachBody: false`） → **対処**: 生成ステージではカプセルコライダー＋kinematic Rigidbody の自前モーターを装着する（`Sample_BattlePhase.AttachBody` 参照。平地ステージのプレイヤーには `BuildPlayerUnit` が常時装着します）
 - **症状**: 敵を複数配置したのに 1 体しか出ない → **原因**: 仕様。GameCore のサンプル世界が Hunter / Monster の 1v1 固定のため、実体化するのは最初の `EnemySpawn` だけ（配置基盤側は複数・テーブル対応済み） → **対処**: ロジックを N 体対応にしたうえで、`BuildGeneratedStage` の実体化をループにする
 
 ## 7. 増やす・拡張する
