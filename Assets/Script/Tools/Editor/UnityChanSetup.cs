@@ -178,6 +178,76 @@ namespace Seed.Tools.Editor
             return true;
         }
 
+        /// <summary>ブレンドツリー入り AnimatorController の出力先。</summary>
+        private const string ControllerPath = "Assets/Resources/PlayerAnimator.controller";
+
+        /// <summary>
+        /// AnimatorAvatar 用の AnimatorController を生成する。
+        /// ステートとブレンドツリーだけを置き、**遷移は張らない**——遷移はコードが
+        /// CrossFade で命じる使い方（CODING_STANDARDS §6 の3条件）の実例。
+        /// 事前に Build UnityChan Player Prefab（クリップ複製）の実行が必要。
+        /// </summary>
+        [MenuItem("Seed/Setup/Build UnityChan Animator Controller")]
+        public static void BuildAnimatorController()
+        {
+            EnsureFolder("Assets/Resources");
+            AssetDatabase.DeleteAsset(ControllerPath);
+            var controller = UnityEditor.Animations.AnimatorController
+                .CreateAnimatorControllerAtPath(ControllerPath);
+            controller.AddParameter("Speed", AnimatorControllerParameterType.Float);
+            var machine = controller.layers[0].stateMachine;
+
+            // Locomotion は 1D ブレンドツリー（Speed 0=待機 → 0.45=歩き → 1=走り）
+            var tree = new UnityEditor.Animations.BlendTree
+            {
+                name = "Locomotion",
+                blendParameter = "Speed",
+                blendType = UnityEditor.Animations.BlendTreeType.Simple1D,
+                useAutomaticThresholds = false,
+                hideFlags = HideFlags.HideInHierarchy,
+            };
+            AssetDatabase.AddObjectToAsset(tree, controller);
+            AddTreeChild(tree, "Idle", 0f);
+            AddTreeChild(tree, "Walk", 0.45f);
+            AddTreeChild(tree, "Locomotion", 1f);
+            var locomotion = machine.AddState("Locomotion");
+            locomotion.motion = tree;
+
+            // 単発ステート（遷移は張らない＝グラフにロジックを持たせない）
+            var idle = AddClipState(machine, "Idle");
+            AddClipState(machine, "Attack");
+            AddClipState(machine, "Guard");
+            AddClipState(machine, "Hit");
+            AddClipState(machine, "Death");
+            AddClipState(machine, "Jump");
+            AddClipState(machine, "Win");
+            machine.defaultState = idle;
+
+            AssetDatabase.SaveAssets();
+            Debug.Log($"[UnityChanSetup] 完了: {ControllerPath}（ステート {machine.states.Length} 個・"
+                + "遷移なし＝CrossFade 駆動用）。AnimatorAvatar.Configure で使えます");
+        }
+
+        /// <summary>複製済みクリップをブレンドツリーの子へ加える。</summary>
+        private static void AddTreeChild(UnityEditor.Animations.BlendTree tree, string clipName,
+            float threshold)
+        {
+            var clip = AssetDatabase.LoadAssetAtPath<AnimationClip>($"{ClipFolder}/{clipName}.anim");
+            if (clip != null)
+            {
+                tree.AddChild(clip, threshold);
+            }
+        }
+
+        /// <summary>複製済みクリップを1ステートとして置く。</summary>
+        private static UnityEditor.Animations.AnimatorState AddClipState(
+            UnityEditor.Animations.AnimatorStateMachine machine, string name)
+        {
+            var state = machine.AddState(name);
+            state.motion = AssetDatabase.LoadAssetAtPath<AnimationClip>($"{ClipFolder}/{name}.anim");
+            return state;
+        }
+
         /// <summary>フォルダを用意する（親から順に）。</summary>
         private static void EnsureFolder(string path)
         {

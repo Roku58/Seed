@@ -310,9 +310,46 @@ arm.SetTarget(enemyPosition + Vector3.up * 0.6f);
 デモは App 実装の `Sample_GroundSnapSolver` が本体の高さを地面へ吸着させ、
 **足元の細かな凹凸は足IKが吸収する**二段構成にしています。
 
+### AnimatorController と併用する（`AnimatorAvatar`）
+
+ブレンドツリーやアニメーター職との協業が必要な場合は、Playables 直駆動（`RiggedAvatar`）の
+代わりに **`AnimatorAvatar`**（Controller 駆動の `IAvatar` 実装）を選べます。
+
+> 📖 **用語 — ブレンドツリー**: 複数のクリップをパラメータ（例: 速度）で連続的に
+> 混ぜ合わせる Animator の仕組み。歩き⇄走りが「切り替え」ではなく「割合」で滑らかにつながる。
+
+使い方（UnityChan の例）:
+
+1. メニュー **Seed/Setup/Build UnityChan Player Prefab** を実行（クリップ複製。実行済みなら不要）
+2. メニュー **Seed/Setup/Build UnityChan Animator Controller** を実行——
+   `Assets/Resources/PlayerAnimator.controller` が生成される
+   （Idle/Attack/… のステート＋ `Speed` で 待機→歩き→走り を混ぜる Locomotion
+   ブレンドツリー。**遷移は張っていない**）
+3. Avatar の組み上げで `RiggedAvatar` の代わりに構成する:
+
+```csharp
+var controller = Resources.Load<RuntimeAnimatorController>("PlayerAnimator");
+animator.runtimeAnimatorController = controller;
+var avatar = instance.AddComponent<AnimatorAvatar>();
+avatar.Configure(animator); // 既定: BehaviorKey と同名ステートへクロスフェード
+```
+
+守るべき3条件（[CODING_STANDARDS](../CODING_STANDARDS.md) §6）:
+
+1. **遷移はコードが命じる**——Controller のグラフへ遷移条件・Exit Time のロジックを
+   持たせない（ステートとブレンドツリーの置き場として使う）
+2. ゲームロジックは Animator の状態を**読まない**（逆流はアニメーションイベント→
+   `IAvatarEventSink` のみ）
+3. Animator パラメータは艶（`Speed` 等のブレンド用）のみ
+
+*なぜこの形か*: 行動の真実は Behavior 状態機械にあります（[08_Character](08_Character.md)）。
+Controller にも遷移を持たせると状態機械が2つになり、必ずズレます。
+「置き場」として使えば、真実は一箇所のまま Controller の実利だけを得られます。
+
 ## 8. 関連ファイルとテスト
 
 - `Assets/Script/Motion/Runtime/RiggedAvatar.cs` — IAvatar 実装＋MotionBindings
+- `Assets/Script/Motion/Runtime/AnimatorAvatar.cs` — Controller 駆動の IAvatar 実装＋対応表
 - `Assets/Script/Motion/Runtime/AnimationDriver.cs` — Playables グラフと 2 レイヤー再生
 - `Assets/Script/Motion/Runtime/MotionSet.cs` / `MotionClipId.cs` — クリップ台帳と論理名
 - `Assets/Script/Motion/Runtime/CrossfadeState.cs` — MotionDescriptor / MotionEvent / フェード状態機械

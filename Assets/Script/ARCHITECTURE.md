@@ -7,13 +7,14 @@
 
 ## 基盤一覧と依存ルール
 
+```
 Assets/Script/
 ├─ GameCore/    Seed.Core（決定的ロジック）/ .Presenter / .Samples   … 何にも依存しない
 ├─ Hub/         Seed.Hub（MessageHub/ServiceRegistry/SubscriptionBag）
 │               + Seed.Hub.Contracts（エンジン恒久契約。noEngineReferences）
 │               + Seed.Hub.Unity（HubVector3⇔Vector3 変換だけの薄い橋）      … 何にも依存しない
 │               + Seed.Hub.Editor（メニュー Seed/Message Tracer＝メッセージフローの観測ウィンドウ）
-├─ Game/        Game..Contracts（タイトル/ジャンル固有の契約。例: Game.Battle.Contracts）
+├─ Game/        Game.<Title>.Contracts（タイトル/ジャンル固有の契約。例: Game.Battle.Contracts）
 │               … Seed.Hub.Contracts のみに依存。タイトル追加＝契約asmdef追加で、恒久契約は肥大しない
 ├─ Character/   Seed.Character（アクター制御。下記参照）              … Hubのみに依存
 ├─ UI/          Seed.UI（レイヤ付き画面交通整理: UIScreen/ScreenRouter）… Hubのみに依存
@@ -25,24 +26,22 @@ Assets/Script/
 ├─ Persistence/ Seed.Persistence（FileSaveStore/SaveEnvelope。byte[]の安全な永続化）… Hubのみに依存・純C#
 ├─ Motion/      Seed.Motion（Playables直駆動のアニメ再生・姿勢/IK/揺れものリグ・‰イベント）
 │               … Seed.Characterに依存（艶レイヤー。AnimatorControllerアセット不要）
-├─ Cameras/     Seed.Cameras（視点IDでの切替・重ね合わせ。Cinemachine 3.1.7 を駆動）
-├─ Pooling/     Seed.Pooling（オブジェクトプール。二重返却は即例外・統計つき。依存なし）
-├─ World/       Seed.World（原点回帰。float精度の維持。判断=純C#/適用=MonoBehaviour）
 ├─ Logging/     Seed.Logging（ZLogger のゼロアロケ構造化ログ。GameLog 窓口）
 ├─ AssetLoad/   Seed.Assets（IAssetLoader 契約＋Addressables 実装。UniTask で await）
 ├─ StageGen/    Seed.StageGen（設計図生成パイプライン＋施工。迷路/街/テンプレ/バイオーム/配置）
 │               … Seed.Coreのみに依存（DeterministicRandom）。生成コアは純C#・施工だけUnity
 │               + Seed.StageGen.Editor（メニュー Seed/Stage Palette＝プレハブ↔役割の紐付けと検証）
-├─ Cameras/     Seed.Cameras（視点IDでカメラを指名。FPS/TPS切替＋演出カメラの重ね）
+├─ Cameras/     Seed.Cameras（視点IDでカメラを指名。FPS/TPS切替＋演出カメラの重ね。Cinemachine 3.1.7 を駆動）
 │               … Hub と Unity.Cinemachine に依存（見え方はCinemachine、指名の契約だけをSeedが持つ）
-├─ Pooling/     Seed.Pooling（ObjectPool/GameObjectPool/PoolRegistry。使い回しと統計）… 何にも依存しない
-├─ World/       Seed.World（原点回帰。広大フィールドでのfloat精度の維持）… Hubのみに依存
+├─ Pooling/     Seed.Pooling（ObjectPool/GameObjectPool/PoolRegistry。二重返却は即例外・統計つき）… 何にも依存しない
+├─ World/       Seed.World（原点回帰。広大フィールドでのfloat精度の維持。判断=純C#/適用=MonoBehaviour）… Hubのみに依存
 ├─ Data/        Seed.Data（マスターデータ→EntityRegistry/FactoryRegistry のローダ）… Seed.Coreのみに依存
 │               + Seed.Data.Editor（メニュー Seed/Master Data Browser＝一覧・検索・ID重複検証・空きID提案。
 │                 定義アセットの Inspector にも重複警告と空きID割り当てボタンが出る）
 └─ App/         Seed.App（合成ルート・方針・CoreHubBridge・統合デモ）  … 全部を知る唯一の場所
 App/Foundation/ = 合成ルートの再利用骨格
 （TickPipeline / CompositionScope / RecordHubTranslator / LogicInputFunnel）
+```
 
 
 - **基盤同士は互いを知らない**。会話はすべて Hub（メッセージ）か ServiceRegistry（同期問い合わせ）経由
@@ -71,11 +70,13 @@ App/Foundation/ = 合成ルートの再利用骨格
 
 ## ゲームフロー（Seed.Flow）——フェーズとステージの切り替え
 
+```
 永続ルート（MonoBehaviour 1枚。Hub/Services/Input/マスターデータ/カメラ/GameFlow を所有）
 └ GameFlow（遷移状態機械。ChangePhaseCommand の唯一の処理者）
 └ GamePhase（ホーム・戦闘・ショップ… 1フェーズ=1合成ルート）
 OnEnter(payload) で基盤・舞台・画面を CompositionScope に組み立て
 OnExit() で逆順に片付け、舞台GameObjectごと破棄する
+```
 
 
 - **遷移は必ず「要求→次Tickで Exit→（非同期ロード待ち）→Enter→PhaseChanged 通知」**。
@@ -119,10 +120,12 @@ dt の供給源は時間基盤（GameClock）ただ1つ。永続ルートが毎�
 
 ## ステージ自動生成（Seed.StageGen）——設計図と施工の分離
 
+```
 設定＋seed → GenerationPipeline（IGenerationPass の列。パスごとに random.Fork()）
 → StageBlueprint（設計図: セル種別/素材バリアント/バイオームの3レイヤー
 ＋区画＋配置物リスト。純C#・決定的）
 → StageBuilder（施工。アセットパレット＋配置表。抽選はしない）
+```
 
 
 - **同じ seed＋設定＋パス列 → バイト単位で同一の設計図**（見た目の抽選まで生成側で焼き込む）。
@@ -155,20 +158,30 @@ StageAssetPalette / StageBuilder（施工。抽選はしない）
 
 ## モーション基盤（Seed.Motion）——アニメーション・姿勢・IK
 
+```
 Behavior遷移（真実） → RiggedAvatar（IAvatar実装）
 ├ AnimationDriver … Playables直駆動のクロスフェード再生（AnimatorControllerアセット不要）。
 │   全身＋上半身の2レイヤー（AvatarMaskで範囲指定＝走りながら上半身だけ攻撃）。
 │   正規化時間‰イベント（MotionSet登録）→ IAvatarEventSink → 行動側へ還流
 └ MotionRig（LateUpdate） … アニメの上へ重ねる姿勢・IK
-LookAtRig（注視・可動域クランプ）/ TwoBoneIkRig（腕・脚の解析解）/
-ChainIkRig（FABRIK。尻尾・触手）/ SpringBoneRig（揺れもの: Verlet＋長さ拘束＋押し出し）/
-FootIkRig（階段・段差・坂の接地適応。下記）
+    LookAtRig（注視・可動域クランプ）/ TwoBoneIkRig（腕・脚の解析解）/
+    ChainIkRig（FABRIK。尻尾・触手）/ SpringBoneRig（揺れもの: Verlet＋長さ拘束＋押し出し）/
+    FootIkRig（階段・段差・坂の接地適応。下記）
+```
+
+- **AnimatorAvatar（IAvatar実装のもう1つの選択肢）**: AnimatorController 駆動。
+  Behavior遷移をステート名への CrossFade 命令へ翻訳し、Controller は「ステートと
+  ブレンドツリーの置き場」として使う（遷移グラフにロジックを持たせない＝真実の
+  二重化防止。使い分けと3条件は [CODING_STANDARDS.md](CODING_STANDARDS.md) §6）
 
 FootIkRig の構成（凹凸地形への追従）:
-  IGroundProbe（地面問い合わせの契約。PhysicsGroundProbe が既定・差し替え可）
-    → FootPlacementSolver（純C#の解決器。①必要上下量の測定 ②段差上限で足場判定
-       ③深い側に合わせて腰を沈める ④法線へ足裏を沿わせる（傾斜上限つき）⑤時間追従で平滑化）
-    → TwoBoneIkRig で脚を曲げ、足首を法線へ向ける
+
+```
+IGroundProbe（地面問い合わせの契約。PhysicsGroundProbe が既定・差し替え可）
+  → FootPlacementSolver（純C#の解決器。①必要上下量の測定 ②段差上限で足場判定
+     ③深い側に合わせて腰を沈める ④法線へ足裏を沿わせる（傾斜上限つき）⑤時間追従で平滑化）
+  → TwoBoneIkRig で脚を曲げ、足首を法線へ向ける
+```
 
 
 - **状態機械を二重に作らない**: 遷移の真実は Behavior。アニメ側は MotionSet
@@ -265,14 +278,16 @@ ZLogger / UnityDebugSheet / NuGetForUnity（詳細と使い方は `Docs/18_Libra
 
 ## キャラクター基盤（Seed.Character）のアクター制御アーキテクチャ
 
+```
 CharactersManager（全体管理: 陣営の束・Tick順・名簿・リアクションの順序采配）
 └ PlayersManager / EnemiesManager（陣営管理: FactionId付与・Add順にTick・退場時のAvatar解放まで一気通貫）
-└ PlayerController / EnemyController（ユニット制御: LogicとAgentの結線）
-├ Logic（頭脳: ManualLogic=手動 / AI思考ルーチンはApp側で実装）
-└ CharacterAgent（1ユニット: 複数Actorの切替・リアクション受け口・生存写し・プール再利用）
-└ CharacterActor（Presenter: Behavior状態機械＋ActorPose＋Avatar）
-├ Behavior（行動の数だけ用意。CharacterBehaviorBase / TimedBehaviorBase を継承）
-└ Avatar（View: Avatar3D=モデル / Avatar2D=立ち絵 / NullAvatar）
+   └ PlayerController / EnemyController（ユニット制御: LogicとAgentの結線）
+      ├ Logic（頭脳: ManualLogic=手動 / AI思考ルーチンはApp側で実装）
+      └ CharacterAgent（1ユニット: 複数Actorの切替・リアクション受け口・生存写し・プール再利用）
+         └ CharacterActor（Presenter: Behavior状態機械＋ActorPose＋Avatar）
+            ├ Behavior（行動の数だけ用意。CharacterBehaviorBase / TimedBehaviorBase を継承）
+            └ Avatar（View: Avatar3D=モデル / Avatar2D=立ち絵 / NullAvatar）
+```
 
 
 - **MonoBehaviour は Avatar の実装だけ**。Manager〜Behavior は純C#で、NUnit EditMode で直接テストできる
@@ -291,10 +306,12 @@ CharactersManager（全体管理: 陣営の束・Tick順・名簿・リアクシ
 
 ### AI基盤（Seed.AI）——キャラクターAIとメタAI
 
+```
 AiDirector（メタAI: 戦場全体の采配。指示書 AiOrders を配る＝攻撃権・手心・注目対象）
 └ AiBrain（キャラAI: ICharacterLogic 実装。Consideration を採点し最高得点の意図を採用）
-└ IAiConsideration（思考の1候補。「追う」「攻撃する」…候補の数だけ用意する拡張点）
-出力は CharacterIntent（＝入力と同じ語彙）
+   └ IAiConsideration（思考の1候補。「追う」「攻撃する」…候補の数だけ用意する拡張点）
+      出力は CharacterIntent（＝入力と同じ語彙）
+```
 
 
 - **制御の経路はプレイヤーもNPCもエネミーも完全に共通**。AIは意図（CharacterIntent）を

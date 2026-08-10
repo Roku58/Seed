@@ -53,7 +53,7 @@ public float Gravity { get; set; } = -22f;
    *なぜ*: 命令の処理者が2人いると実行順・二重処理のバグが生まれる。
 4. **真実は一箇所** — 位置の真実は `ActorPose`、行動遷移の真実は Behavior 状態機械。
    Transform や Animator は「写し先」であって真実ではない。
-   *なぜ*: 真実が二重化した瞬間、同期バグが無限に湧く（AnimatorController を使わないのも同じ理由）。
+   *なぜ*: 真実が二重化した瞬間、同期バグが無限に湧く（AnimatorController のグラフへ遷移ロジックを持たせない規約——§6——も同じ理由）。
 5. **純C#コア・MonoBehaviour は端** — ロジックは UnityEngine 非依存の純C#で書き、
    MonoBehaviour は入出力の端（表示・入力・物理）にだけ置く。
    *なぜ*: EditMode テストで数百件を数十秒で回せる。決定性も守れる。
@@ -100,8 +100,19 @@ public float Gravity { get; set; } = -22f;
 
 ### 表示・アニメーション
 
-- **AnimatorController アセットは使わない**。再生は Playables 直駆動（`AnimationDriver`）。
-  *なぜ*: 遷移の真実は Behavior 状態機械にある（§3-4）。状態機械の二重化を避ける。
+- アニメーション再生は **Playables 直駆動（`RiggedAvatar`）と AnimatorController 駆動
+  （`AnimatorAvatar`）の併用可**。単純なクリップ切替なら前者（モーション追加が
+  `MotionSet.Add` 1行）、ブレンドツリー・レイヤー合成・アニメーター職との協業が
+  要るなら後者を選ぶ。
+- AnimatorController を使う場合の**3条件**:
+  ① 遷移の真実は Behavior——グラフに遷移条件・Exit Time のロジックを持たせず、
+  遷移はコードの `CrossFadeInFixedTime` で命じる（Controller はステートと
+  ブレンドツリーの置き場）
+  ② ゲームロジックは Animator の状態を読まない（逆流はアニメーションイベント→
+  `IAvatarEventSink` のみ）
+  ③ Animator パラメータは艶（`Speed` 等のブレンド用）のみ
+  *なぜ*: 状態機械が2つあると必ずズレる（§3-4）。Controller を「状態機械」ではなく
+  「モーション置き場」として使えば、真実は一箇所のまま Controller の実利だけを得られる。
 - `AnimationDriver.Play` は**非ループクリップを毎回先頭から流し直す**（攻撃連打用の仕様）。
   毎フレーム呼ぶ場所では `CurrentMotion` を確認してから呼ぶ。
   *なぜ*: 確認せずに毎フレーム呼ぶと、最初のポーズで凍りつく。
