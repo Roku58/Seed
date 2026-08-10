@@ -11,7 +11,8 @@
         "Seed.Core.Samples",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
-        "Seed.Data"
+        "Seed.Data",
+        "Seed.Motion"
     ],
     "includePlatforms": [
         "Editor"

@@ -111,8 +111,11 @@ namespace Seed.App
         /// <summary>足IKデモ: プレイヤーの両足（階段・坂で接地させる）。</summary>
         private FootIkRig _playerFeet;
 
-        /// <summary>実モデル（UnityChan）。無い環境では null＝カプセルで代替。</summary>
-        private Sample_PlayerModel _playerModel;
+        /// <summary>プレイヤーモデル束（標準/揺れものデモはステージのマスターデータが選ぶ）。無い環境では null＝カプセルで代替。</summary>
+        private Sample_IPlayerModel _playerModel;
+
+        /// <summary>このステージのプレイヤーモデル種別（Sample_StageSpec.PlayerModelKind）。</summary>
+        private int _playerModelKind;
 
         /// <summary>プレイヤーの移動モーター（重力・ジャンプ・段差を一手に担う）。</summary>
         private Sample_KinematicMotor _playerMotor;
@@ -121,8 +124,8 @@ namespace Seed.App
         private readonly List<(CharacterAgent Agent, Sample_KinematicMotor Motor)> _bodies =
             new List<(CharacterAgent, Sample_KinematicMotor)>();
 
-        /// <summary>揺れものが有効か（[4] で切替。無し状態のサンプル比較用）。</summary>
-        private bool _springsEnabled = true;
+        /// <summary>Controller 駆動時: 滞空クリップを命令済みか（Animator の状態は読まない規約のため App 側で覚える）。</summary>
+        private bool _controllerAirborne;
 
         /// <summary>カメラの水平角（度。マウスで回す）。</summary>
         private float _cameraYaw;
@@ -347,7 +350,7 @@ namespace Seed.App
             _lookSmoothed = Vector2.zero;
             _runClipActive = false;
             _victory = false;
-            _springsEnabled = true;
+            _controllerAirborne = false;
             ApplyAtmosphere();
 
             var battleSubscriptions = _scope.Own(new SubscriptionBag(1));
@@ -477,18 +480,6 @@ namespace Seed.App
                 agent.SwitchActor(next);
             }
 
-            // [4] 揺れものON/OFF——「揺れもの無しの3Dサンプル」状態と見比べるための切替。
-            // Weight=0 は書き戻しだけ止めてシミュは続ける仕様＝再ONでも不連続にならない
-            if (_input.WasPressedThisFrame(Sample_ActionIds.Slot4) && _playerModel != null)
-            {
-                _springsEnabled = !_springsEnabled;
-                for (var i = 0; i < _playerModel.Springs.Count; i++)
-                {
-                    _playerModel.Springs[i].Weight = _springsEnabled ? 1f : 0f;
-                }
-                Debug.Log($"[Motion] 揺れもの: {(_springsEnabled ? "ON" : "OFF")}");
-            }
-
             if (_isAutopilot)
             {
                 // AIの意図を「入力として」注入する。Controller/Agent/Behavior は
@@ -572,6 +563,19 @@ namespace Seed.App
             _pickup?.ForceFinish();
             _playerArm?.ClearTarget();
             _playerLook?.ClearTarget();
+            if (_victory && _playerModel != null)
+            {
+                // 勝利ポーズはここで直接命じる（決着でパイプラインが止まり、
+                // 以後の通常のクリップ選択は走らないため）
+                if (_playerModel.IsControllerDriven)
+                {
+                    _playerModel.ControllerAvatar.Animator.CrossFadeInFixedTime("Win", 0.25f);
+                }
+                else
+                {
+                    _playerModel.Driver?.Play(Sample_PlayerModel.WinClipId, 0.25f);
+                }
+            }
             var result = _victory ? "討伐成功！" : "力尽きた…";
             _resultScreen.SetResult($"{result}   [B] ホームへ");
             // 画面遷移は方針クラスが CharacterDied → ShowScreenCommand(Result) で発行済み
@@ -584,6 +588,7 @@ namespace Seed.App
         /// <summary>地面・ユニット2体をステージ仕様どおりに生成する。</summary>
         private void BuildStage(Sample_StageSpec stage)
         {
+            _playerModelKind = stage.PlayerModelKind;
             if (stage.GeneratorKind != 0)
             {
                 BuildGeneratedStage(stage);
@@ -809,7 +814,12 @@ namespace Seed.App
         private void BuildPlayerUnit(Sample_UnitSpec spec, Vector3 spawn, bool attachBody)
         {
             // 実モデル（Humanoid）があれば RiggedAvatar、無ければ従来のカプセル
-            _playerModel = Sample_PlayerModel.TryCreate(_stageRoot.transform);
+            // プレイヤーモデルはステージのマスターデータで選ぶ:
+            // 0=標準（StarterAssets・Controller駆動・揺れもの無し）
+            // 1=揺れものデモ（UnityChan・Playables 直駆動・SpringBone付き）
+            _playerModel = _playerModelKind == 1
+                ? (Sample_IPlayerModel)Sample_PlayerModel.TryCreate(_stageRoot.transform)
+                : Sample_StarterPlayerModel.TryCreate(_stageRoot.transform);
             var modelAvatar = _playerModel != null
                 ? (IAvatar)_playerModel.Avatar
                 : CreateModelAvatar("Player", PrimitiveType.Capsule, new Color(0.25f, 0.45f, 0.9f));
@@ -1010,9 +1020,9 @@ namespace Seed.App
         /// UnityChan の髪・リボン・スカート・袖はクリップに焼かれていない揺れもの専用ボーン
         /// なので、Seed.Motion の SpringBoneRig がそのまま駆動する（収集は Sample_PlayerModel）。
         /// </summary>
-        private void AttachModelRig(Sample_PlayerModel model)
+        private void AttachModelRig(Sample_IPlayerModel model)
         {
-            var root = model.Avatar.transform;
+            var root = ((Component)model.Avatar).transform;
             _playerHead = model.Head; // 一人称はここへ固定される
             _playerHandBone = model.Hand; // 拾ったアイテムの吸着先
 
@@ -1451,7 +1461,12 @@ namespace Seed.App
                     _playerFeet.Weight, target, Time.deltaTime * 5f);
             }
 
-            var driver = _playerModel?.Avatar.Driver;
+            if (_playerModel != null && _playerModel.IsControllerDriven)
+            {
+                UpdateControllerAnimation(grounded, actor.CurrentKey);
+                return;
+            }
+            var driver = _playerModel?.Driver;
             if (driver == null)
             {
                 return;
@@ -1493,6 +1508,35 @@ namespace Seed.App
                 {
                     driver.Play(idleClip, 0.25f);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Controller 駆動時のクリップ制御（ホーム[6]で切替した場合の経路）。
+        /// 歩き⇄走りはブレンドツリー（Speed パラメータ）が受け持つため App は触らない。
+        /// Behavior に無い演出（滞空）だけを CrossFade で命じ、Animator の状態は
+        /// 読まない規約のため「命令済みか」は App 側の旗で覚える。
+        /// </summary>
+        private void UpdateControllerAnimation(bool grounded, BehaviorKey key)
+        {
+            var animator = _playerModel.ControllerAvatar.Animator;
+            if (!grounded)
+            {
+                // 滞空は移動・待機のときだけ（攻撃・被弾・死亡のモーションを上書きしない）
+                if ((key.Equals(BehaviorKey.Locomotion) || key.Equals(BehaviorKey.Idle))
+                    && !_controllerAirborne)
+                {
+                    _controllerAirborne = true;
+                    animator.CrossFadeInFixedTime("InAir", 0.12f);
+                }
+                return;
+            }
+            if (_controllerAirborne)
+            {
+                // 着地。Behavior 遷移は起きない（移動中のまま）ため、復帰も App が命じる
+                _controllerAirborne = false;
+                animator.CrossFadeInFixedTime(
+                    key.Equals(BehaviorKey.Locomotion) ? "Locomotion" : "Idle", 0.2f);
             }
         }
 

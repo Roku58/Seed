@@ -42,12 +42,13 @@ namespace Seed.App
         {
             var stage1 = _catalog.Get<Sample_StageSpec>(Sample_MasterCatalog.Stage1.Value);
             var stage2 = _catalog.Get<Sample_StageSpec>(Sample_MasterCatalog.Stage2.Value);
+            var stage3 = _catalog.Get<Sample_StageSpec>(Sample_MasterCatalog.Stage3.Value);
+            var stage4 = _catalog.Get<Sample_StageSpec>(Sample_MasterCatalog.Stage4.Value);
+            var stage5 = _catalog.Get<Sample_StageSpec>(Sample_MasterCatalog.Stage5.Value);
 
             _root = new GameObject("HomePhase");
             var panel = _root.AddComponent<Sample_TextPanel>();
             panel.Title = "ホーム";
-            var stage3 = _catalog.Get<Sample_StageSpec>(Sample_MasterCatalog.Stage3.Value);
-            var stage4 = _catalog.Get<Sample_StageSpec>(Sample_MasterCatalog.Stage4.Value);
             panel.Lines = new[]
             {
                 $"[1] 出撃: {stage1.DisplayName}",
@@ -55,6 +56,7 @@ namespace Seed.App
                 "[3] ショップ",
                 $"[4] 出撃: {stage3.DisplayName}",
                 $"[5] 出撃: {stage4.DisplayName}",
+                $"[6] 出撃: {stage5.DisplayName}",
             };
         }
 
@@ -84,6 +86,11 @@ namespace Seed.App
             {
                 _hub.PublishCommand(new ChangePhaseCommand(
                     Sample_PhaseIds.Battle, Sample_MasterCatalog.Stage4.Value));
+            }
+            else if (_input.WasPressedThisFrame(Sample_ActionIds.Slot6)) // [6]
+            {
+                _hub.PublishCommand(new ChangePhaseCommand(
+                    Sample_PhaseIds.Battle, Sample_MasterCatalog.Stage5.Value));
             }
         }
 

@@ -99,6 +99,9 @@ namespace Seed.App
         /// <summary>迷路の行き止まり貫通率（‰）。</summary>
         public int BraidPermille { get; set; }
 
+        /// <summary>プレイヤーモデルの種類（0=標準 / 1=揺れものデモ）。</summary>
+        public int PlayerModelKind { get; set; }
+
         /// <summary>Spec（真実の形）から行を作る。</summary>
         public static Sample_StageRow From(Sample_StageSpec spec)
         {
@@ -116,6 +119,7 @@ namespace Seed.App
                 GenWidth = spec.GenWidth,
                 GenHeight = spec.GenHeight,
                 BraidPermille = spec.BraidPermille,
+                PlayerModelKind = spec.PlayerModelKind,
             };
         }
 
@@ -124,7 +128,8 @@ namespace Seed.App
         {
             return new Sample_StageSpec(Id, DebugName, DisplayName,
                 new UnityEngine.Color(GroundR, GroundG, GroundB), GroundScale,
-                EnemyAttackInterval, GeneratorKind, GenWidth, GenHeight, BraidPermille);
+                EnemyAttackInterval, GeneratorKind, GenWidth, GenHeight, BraidPermille,
+                PlayerModelKind);
         }
     }
 }

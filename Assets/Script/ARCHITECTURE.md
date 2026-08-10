@@ -7,41 +7,33 @@
 
 ## 基盤一覧と依存ルール
 
-```
-Assets/Script/
-├─ GameCore/    Seed.Core（決定的ロジック）/ .Presenter / .Samples   … 何にも依存しない
-├─ Hub/         Seed.Hub（MessageHub/ServiceRegistry/SubscriptionBag）
-│               + Seed.Hub.Contracts（エンジン恒久契約。noEngineReferences）
-│               + Seed.Hub.Unity（HubVector3⇔Vector3 変換だけの薄い橋）      … 何にも依存しない
-│               + Seed.Hub.Editor（メニュー Seed/Message Tracer＝メッセージフローの観測ウィンドウ）
-├─ Game/        Game.<Title>.Contracts（タイトル/ジャンル固有の契約。例: Game.Battle.Contracts）
-│               … Seed.Hub.Contracts のみに依存。タイトル追加＝契約asmdef追加で、恒久契約は肥大しない
-├─ Character/   Seed.Character（アクター制御。下記参照）              … Hubのみに依存
-├─ UI/          Seed.UI（レイヤ付き画面交通整理: UIScreen/ScreenRouter）… Hubのみに依存
-├─ Input/       Seed.Input（InputSnapshot/InputRouter/InputSystemReader）… Hubのみに依存
-├─ Flow/        Seed.Flow（GamePhase/GameFlow/ISceneLoader。フェーズ＝ホーム/戦闘/ショップ等の切替）… Hubのみに依存
-├─ Clock/       Seed.Clock（GameClock。ポーズ/倍速/ヒットストップ＝dtの供給源）… Hubのみに依存・純C#
-├─ AI/          Seed.AI（AiBrain/Consideration/AiDirector/InputEmulator。キャラAI＋メタAI）
-│               … Hub と Seed.Character に依存（意図＝CharacterIntent の語彙の上に構築）
-├─ Persistence/ Seed.Persistence（FileSaveStore/SaveEnvelope。byte[]の安全な永続化）… Hubのみに依存・純C#
-├─ Motion/      Seed.Motion（Playables直駆動のアニメ再生・姿勢/IK/揺れものリグ・‰イベント）
-│               … Seed.Characterに依存（艶レイヤー。AnimatorControllerアセット不要）
-├─ Logging/     Seed.Logging（ZLogger のゼロアロケ構造化ログ。GameLog 窓口）
-├─ AssetLoad/   Seed.Assets（IAssetLoader 契約＋Addressables 実装。UniTask で await）
-├─ StageGen/    Seed.StageGen（設計図生成パイプライン＋施工。迷路/街/テンプレ/バイオーム/配置）
-│               … Seed.Coreのみに依存（DeterministicRandom）。生成コアは純C#・施工だけUnity
-│               + Seed.StageGen.Editor（メニュー Seed/Stage Palette＝プレハブ↔役割の紐付けと検証）
-├─ Cameras/     Seed.Cameras（視点IDでカメラを指名。FPS/TPS切替＋演出カメラの重ね。Cinemachine 3.1.7 を駆動）
-│               … Hub と Unity.Cinemachine に依存（見え方はCinemachine、指名の契約だけをSeedが持つ）
-├─ Pooling/     Seed.Pooling（ObjectPool/GameObjectPool/PoolRegistry。二重返却は即例外・統計つき）… 何にも依存しない
-├─ World/       Seed.World（原点回帰。広大フィールドでのfloat精度の維持。判断=純C#/適用=MonoBehaviour）… Hubのみに依存
-├─ Data/        Seed.Data（マスターデータ→EntityRegistry/FactoryRegistry のローダ）… Seed.Coreのみに依存
-│               + Seed.Data.Editor（メニュー Seed/Master Data Browser＝一覧・検索・ID重複検証・空きID提案。
-│                 定義アセットの Inspector にも重複警告と空きID割り当てボタンが出る）
-└─ App/         Seed.App（合成ルート・方針・CoreHubBridge・統合デモ）  … 全部を知る唯一の場所
-App/Foundation/ = 合成ルートの再利用骨格
-（TickPipeline / CompositionScope / RecordHubTranslator / LogicInputFunnel）
-```
+| フォルダ | asmdef | 役割 | 依存先 |
+|---|---|---|---|
+| `GameCore/` | `Seed.Core`（+ `.Presenter` / `.Samples`） | 決定的ロジックの心臓部（Model。リプレイ・ヘッドレス検証の要） | なし |
+| `Hub/` | `Seed.Hub` | MessageHub / ServiceRegistry / SubscriptionBag | なし |
+| `Hub/` | `Seed.Hub.Contracts` | エンジン恒久契約（noEngineReferences） | なし |
+| `Hub/` | `Seed.Hub.Unity` | HubVector3⇔Vector3 変換だけの薄い橋 | Hub |
+| `Hub/` | `Seed.Hub.Editor` | メニュー Seed/Message Tracer（メッセージフローの観測） | Hub |
+| `Game/` | `Game.<Title>.Contracts` | タイトル固有の契約（例: `Game.Battle.Contracts`）。タイトル追加＝契約asmdef追加 | Hub.Contracts |
+| `Character/` | `Seed.Character` | アクター制御（Agent / Actor / Behavior / Avatar） | Hub |
+| `UI/` | `Seed.UI` | レイヤ付き画面交通整理（UIScreen / ScreenRouter） | Hub |
+| `Input/` | `Seed.Input` | InputSnapshot / InputRouter / InputSystemReader | Hub |
+| `Flow/` | `Seed.Flow` | GamePhase / GameFlow / ISceneLoader（フェーズ切替） | Hub・UniTask |
+| `Clock/` | `Seed.Clock` | 時間基盤（ポーズ/倍速/ヒットストップ＝dtの供給源。純C#） | Hub |
+| `AI/` | `Seed.AI` | キャラAI＋メタAI（AiBrain / AiDirector / InputEmulator） | Hub・Character |
+| `Persistence/` | `Seed.Persistence` | byte[] の安全な永続化（FileSaveStore / SaveEnvelope。純C#） | Hub |
+| `Motion/` | `Seed.Motion` | アニメ再生（Playables / Controller）・姿勢 / IK / 揺れもの・‰イベント | Character |
+| `Cameras/` | `Seed.Cameras` | 視点IDでカメラを指名（FPS/TPS切替＋演出カメラの重ね） | Hub・Cinemachine |
+| `Pooling/` | `Seed.Pooling` | オブジェクトプール（二重返却は即例外・統計つき） | なし |
+| `World/` | `Seed.World` | 原点回帰（float精度の維持。判断=純C# / 適用=MonoBehaviour） | Hub |
+| `Logging/` | `Seed.Logging` | ゼロアロケ構造化ログ（GameLog 窓口） | ZLogger |
+| `AssetLoad/` | `Seed.Assets` | IAssetLoader 契約＋Addressables 実装 | UniTask・Addressables |
+| `StageGen/` | `Seed.StageGen`（+ `.Editor`） | 設計図生成パイプライン＋施工（迷路/街/テンプレ/配置。決定的） | Seed.Core |
+| `Data/` | `Seed.Data`（+ `.Editor`） | マスターデータ→レジストリのローダ | Seed.Core |
+| `App/` | `Seed.App` | 合成ルート・方針・CoreHubBridge・統合デモ | **全部を知る唯一の場所** |
+
+- `App/Foundation/` は合成ルートの再利用骨格（TickPipeline / CompositionScope / RecordHubTranslator / LogicInputFunnel）
+- エディタ拡張のメニュー: Seed/Message Tracer・Seed/Stage Palette・Seed/Master Data Browser・Seed/Setup 一式
 
 
 - **基盤同士は互いを知らない**。会話はすべて Hub（メッセージ）か ServiceRegistry（同期問い合わせ）経由
@@ -70,13 +62,11 @@ App/Foundation/ = 合成ルートの再利用骨格
 
 ## ゲームフロー（Seed.Flow）——フェーズとステージの切り替え
 
-```
-永続ルート（MonoBehaviour 1枚。Hub/Services/Input/マスターデータ/カメラ/GameFlow を所有）
-└ GameFlow（遷移状態機械。ChangePhaseCommand の唯一の処理者）
-└ GamePhase（ホーム・戦闘・ショップ… 1フェーズ=1合成ルート）
-OnEnter(payload) で基盤・舞台・画面を CompositionScope に組み立て
-OnExit() で逆順に片付け、舞台GameObjectごと破棄する
-```
+- **永続ルート**（MonoBehaviour 1枚）… Hub / Services / Input / マスターデータ / カメラ / GameFlow を所有
+  - **GameFlow**（遷移状態機械）… ChangePhaseCommand の唯一の処理者
+    - **GamePhase**（ホーム・戦闘・ショップ…）… 1フェーズ = 1合成ルート。
+      OnEnter(payload) で基盤・舞台・画面を CompositionScope に組み立て、
+      OnExit() で逆順に片付けて舞台 GameObject ごと破棄する
 
 
 - **遷移は必ず「要求→次Tickで Exit→（非同期ロード待ち）→Enter→PhaseChanged 通知」**。
@@ -120,12 +110,10 @@ dt の供給源は時間基盤（GameClock）ただ1つ。永続ルートが毎�
 
 ## ステージ自動生成（Seed.StageGen）——設計図と施工の分離
 
-```
-設定＋seed → GenerationPipeline（IGenerationPass の列。パスごとに random.Fork()）
-→ StageBlueprint（設計図: セル種別/素材バリアント/バイオームの3レイヤー
-＋区画＋配置物リスト。純C#・決定的）
-→ StageBuilder（施工。アセットパレット＋配置表。抽選はしない）
-```
+1. **GenerationPipeline** … 設定＋seed を受け取る IGenerationPass の列（パスごとに random.Fork()）
+2. **StageBlueprint** … 設計図。セル種別 / 素材バリアント / バイオームの3レイヤー
+   ＋区画＋配置物リスト（純C#・決定的）
+3. **StageBuilder** … 施工。アセットパレット＋配置表に従うだけで、抽選はしない
 
 
 - **同じ seed＋設定＋パス列 → バイト単位で同一の設計図**（見た目の抽選まで生成側で焼き込む）。
@@ -142,14 +130,11 @@ dt の供給源は時間基盤（GameClock）ただ1つ。永続ルートが毎�
 
 ### アセットの紐付け（StagePaletteAsset ＋ Seed/Stage Palette）
 
-```
-StagePaletteAsset（ScriptableObject。素のSOにする＝Seed.Dataへ依存させない）
-  ├ タイル行: (バイオーム, セル種別, バリアント) → プレハブ ＋ 高さ調整 ＋ セル拡縮
-  └ 配置行: 配置種別 → プレハブ ＋ 高さ調整
-        │ BuildPalette() / ApplyPlacements(builder)
-        ▼
-StageAssetPalette / StageBuilder（施工。抽選はしない）
-```
+- **StagePaletteAsset**（ScriptableObject。素のSOにする＝Seed.Data へ依存させない）
+  - タイル行: (バイオーム, セル種別, バリアント) → プレハブ＋高さ調整＋セル拡縮
+  - 配置行: 配置種別 → プレハブ＋高さ調整
+- `BuildPalette()` / `ApplyPlacements(builder)` の2つの口から
+  **StageAssetPalette / StageBuilder**（施工。抽選はしない）へ渡す
 
 - **未登録でも動く**: 埋めていない役割は内蔵プリミティブへ落ちるため、途中まで埋めた状態で試せる
 - **キー重複はウィンドウが検出**: 同じキーの行は後の行に上書きされて黙って無効になるため、
@@ -158,16 +143,14 @@ StageAssetPalette / StageBuilder（施工。抽選はしない）
 
 ## モーション基盤（Seed.Motion）——アニメーション・姿勢・IK
 
-```
-Behavior遷移（真実） → RiggedAvatar（IAvatar実装）
-├ AnimationDriver … Playables直駆動のクロスフェード再生（AnimatorControllerアセット不要）。
-│   全身＋上半身の2レイヤー（AvatarMaskで範囲指定＝走りながら上半身だけ攻撃）。
-│   正規化時間‰イベント（MotionSet登録）→ IAvatarEventSink → 行動側へ還流
-└ MotionRig（LateUpdate） … アニメの上へ重ねる姿勢・IK
+- **RiggedAvatar**（IAvatar 実装・Playables 直駆動）… Behavior 遷移（真実）を受けてクロスフェードする
+  - **AnimationDriver** … Playables 直駆動の再生器（AnimatorController アセット不要）。
+    全身＋上半身の2レイヤー（AvatarMask で範囲指定＝走りながら上半身だけ攻撃）。
+    正規化時間‰イベント（MotionSet 登録）→ IAvatarEventSink → 行動側へ還流
+  - **MotionRig**（LateUpdate）… アニメの上へ重ねる姿勢・IK。装着できるリグ:
     LookAtRig（注視・可動域クランプ）/ TwoBoneIkRig（腕・脚の解析解）/
     ChainIkRig（FABRIK。尻尾・触手）/ SpringBoneRig（揺れもの: Verlet＋長さ拘束＋押し出し）/
     FootIkRig（階段・段差・坂の接地適応。下記）
-```
 
 - **AnimatorAvatar（IAvatar実装のもう1つの選択肢）**: AnimatorController 駆動。
   Behavior遷移をステート名への CrossFade 命令へ翻訳し、Controller は「ステートと
@@ -176,12 +159,10 @@ Behavior遷移（真実） → RiggedAvatar（IAvatar実装）
 
 FootIkRig の構成（凹凸地形への追従）:
 
-```
-IGroundProbe（地面問い合わせの契約。PhysicsGroundProbe が既定・差し替え可）
-  → FootPlacementSolver（純C#の解決器。①必要上下量の測定 ②段差上限で足場判定
-     ③深い側に合わせて腰を沈める ④法線へ足裏を沿わせる（傾斜上限つき）⑤時間追従で平滑化）
-  → TwoBoneIkRig で脚を曲げ、足首を法線へ向ける
-```
+1. **IGroundProbe** … 地面問い合わせの契約（PhysicsGroundProbe が既定・差し替え可）
+2. **FootPlacementSolver** … 純C#の解決器（①必要上下量の測定 ②段差上限で足場判定
+   ③深い側に合わせて腰を沈める ④法線へ足裏を沿わせる（傾斜上限つき）⑤時間追従で平滑化）
+3. **TwoBoneIkRig** … 脚を曲げ、足首を法線へ向ける
 
 
 - **状態機械を二重に作らない**: 遷移の真実は Behavior。アニメ側は MotionSet
@@ -203,16 +184,12 @@ IGroundProbe（地面問い合わせの契約。PhysicsGroundProbe が既定・�
 
 ## カメラ基盤（Seed.Cameras）——視点の指名と合成
 
-```
-命令（どの基盤からでも）: SetViewpointCommand / PushViewpointCommand / PopViewpointCommand
-        ▼
-CameraDirector（命令の唯一の処理者。視点ID→CinemachineCameraの登録表）
-  ├ ViewpointStack（純C#。基本の視点＝FPS/TPS常用切替 ＋ 重ねの視点＝演出カメラ）
-  │   有効な視点 = 重ねがあれば最前面、無ければ基本 → 演出は積んで外すだけで元へ戻る
-  └ 有効な視点のPriorityだけを上げる → CinemachineBrain が補間（＝合成）する
-        ▼
-通知: ViewpointChanged（HUDの切替・解析ログが購読）
-```
+1. **命令**（どの基盤からでも）… SetViewpointCommand / PushViewpointCommand / PopViewpointCommand
+2. **CameraDirector**（命令の唯一の処理者）… 視点ID → CinemachineCamera の登録表
+   - **ViewpointStack**（純C#）… 基本の視点（FPS/TPS の常用切替）＋重ねの視点（演出カメラ）。
+     有効な視点 = 重ねがあれば最前面、無ければ基本＝演出は積んで外すだけで元へ戻る
+   - 有効な視点の Priority だけを上げ、CinemachineBrain が補間（＝合成）する
+3. **通知** … ViewpointChanged（HUD の切替・解析ログが購読）
 
 - **見え方はCinemachineに委譲**（追従の減衰・遮蔽回避・ブレンド曲線）。基盤の価値は
   「他の基盤がカメラの実体を知らずに済む」ことに絞る
@@ -223,14 +200,12 @@ CameraDirector（命令の唯一の処理者。視点ID→CinemachineCameraの�
 
 ## プール基盤（Seed.Pooling）——使い回しと事故検出
 
-```
-ObjectPool<T>（純C#）… Rent/Return＋統計（生成/貸出/待機/ピーク/破棄）
-  ├ 二重返却・他所からの返却は即 PoolException（症状が原因から離れる事故を発生点で止める）
-  ├ 保持上限を超えた返却は捨てる（一時的な大量使用でメモリを抱え続けない）
-  └ IPoolable（OnRent/OnReturn）＝リセットの置き場を型として持つ
-GameObjectPool … 通知→非表示→親の付け戻し（位置・向きは貸出時に上書きするので触らない）
-PoolRegistry  … プレハブごとのプールの台帳。PooledInstance（目印）から貸し主を辿る
-```
+- `ObjectPool<T>`（純C#）… Rent / Return＋統計（生成/貸出/待機/ピーク/破棄）
+  - 二重返却・他所からの返却は即 PoolException（症状が原因から離れる事故を発生点で止める）
+  - 保持上限を超えた返却は捨てる（一時的な大量使用でメモリを抱え続けない）
+  - IPoolable（OnRent / OnReturn）＝リセットの置き場を型として持つ
+- **GameObjectPool** … 通知→非表示→親の付け戻し（位置・向きは貸出時に上書きするので触らない）
+- **PoolRegistry** … プレハブごとのプールの台帳。PooledInstance（目印）から貸し主を辿る
 
 - 標準の UnityEngine.Pool.ObjectPool ではなく自作したのは、二重返却の即例外・統計・
   IPoolable の3点を型で守るため（GameCore の EventPool と同じ方針の系列）
@@ -239,17 +214,14 @@ PoolRegistry  … プレハブごとのプールの台帳。PooledInstance（目
 
 ## 世界基盤（Seed.World）——原点回帰
 
-```
-OriginShifter（純C#。判断だけ）
-  ├ 閾値: 焦点（プレイヤー）が Threshold を超えて原点から離れたか（既定は水平のみ）
-  ├ 丸め: SnapSize の格子へ揃える（タイル・ノイズ模様の位相が飛ばない）
-  └ 累積: TotalOffset を記録 → 見た目の座標 − TotalOffset ＝ 開始時からの絶対座標
-        ▼
-OriginShiftSystem（適用と告知。Tickで判断＝原点は世界の状態）
-  ① 登録された根Transformをまとめて移動（地形・カメラ・プールの親。最上位だけ登録＝二重移動を防ぐ）
-  ② IOriginShiftHandler へ通知（純C#側の座標＝ActorPose・トリガー・経路点は自分で加算）
-  ③ Hub へ OriginShifted 通知（疎結合な追従。Cinemachineの履歴補正もここ）
-```
+- **OriginShifter**（純C#。判断だけ）
+  - 閾値: 焦点（プレイヤー）が Threshold を超えて原点から離れたか（既定は水平のみ）
+  - 丸め: SnapSize の格子へ揃える（タイル・ノイズ模様の位相が飛ばない）
+  - 累積: TotalOffset を記録 → 見た目の座標 − TotalOffset ＝ 開始時からの絶対座標
+- **OriginShiftSystem**（適用と告知。Tick で判断＝原点は世界の状態）
+  1. 登録された根 Transform をまとめて移動（地形・カメラ・プールの親。最上位だけ登録＝二重移動を防ぐ）
+  2. IOriginShiftHandler へ通知（純C#側の座標＝ActorPose・トリガー・経路点は自分で加算）
+  3. Hub へ OriginShifted 通知（疎結合な追従。Cinemachine の履歴補正もここ）
 
 - **なぜ必要か**: floatは絶対値が大きいほど刻みが粗くなり、静止しても表示が震え、
   当たり判定・IKが不安定になる。座標系を広げるのではなく世界を原点へ引き戻す
@@ -278,16 +250,14 @@ ZLogger / UnityDebugSheet / NuGetForUnity（詳細と使い方は `Docs/18_Libra
 
 ## キャラクター基盤（Seed.Character）のアクター制御アーキテクチャ
 
-```
-CharactersManager（全体管理: 陣営の束・Tick順・名簿・リアクションの順序采配）
-└ PlayersManager / EnemiesManager（陣営管理: FactionId付与・Add順にTick・退場時のAvatar解放まで一気通貫）
-   └ PlayerController / EnemyController（ユニット制御: LogicとAgentの結線）
-      ├ Logic（頭脳: ManualLogic=手動 / AI思考ルーチンはApp側で実装）
-      └ CharacterAgent（1ユニット: 複数Actorの切替・リアクション受け口・生存写し・プール再利用）
-         └ CharacterActor（Presenter: Behavior状態機械＋ActorPose＋Avatar）
-            ├ Behavior（行動の数だけ用意。CharacterBehaviorBase / TimedBehaviorBase を継承）
-            └ Avatar（View: Avatar3D=モデル / Avatar2D=立ち絵 / NullAvatar）
-```
+- **CharactersManager** … 全体管理（陣営の束・Tick 順・名簿・リアクションの順序采配）
+  - **PlayersManager / EnemiesManager** … 陣営管理（FactionId 付与・Add 順に Tick・退場時の Avatar 解放まで一気通貫）
+    - **PlayerController / EnemyController** … ユニット制御（Logic と Agent の結線）
+      - **Logic** … 頭脳（ManualLogic=手動 / AI 思考ルーチンは App 側で実装）
+      - **CharacterAgent** … 1ユニット（複数 Actor の切替・リアクション受け口・生存写し・プール再利用）
+        - **CharacterActor** … Presenter（Behavior 状態機械＋ActorPose＋Avatar）
+          - **Behavior** … 行動の数だけ用意（CharacterBehaviorBase / TimedBehaviorBase を継承）
+          - **Avatar** … View（Avatar3D=モデル / Avatar2D=立ち絵 / NullAvatar）
 
 
 - **MonoBehaviour は Avatar の実装だけ**。Manager〜Behavior は純C#で、NUnit EditMode で直接テストできる
@@ -306,12 +276,10 @@ CharactersManager（全体管理: 陣営の束・Tick順・名簿・リアクシ
 
 ### AI基盤（Seed.AI）——キャラクターAIとメタAI
 
-```
-AiDirector（メタAI: 戦場全体の采配。指示書 AiOrders を配る＝攻撃権・手心・注目対象）
-└ AiBrain（キャラAI: ICharacterLogic 実装。Consideration を採点し最高得点の意図を採用）
-   └ IAiConsideration（思考の1候補。「追う」「攻撃する」…候補の数だけ用意する拡張点）
+- **AiDirector** … メタAI（戦場全体の采配。指示書 AiOrders を配る＝攻撃権・手心・注目対象）
+  - **AiBrain** … キャラAI（ICharacterLogic 実装。Consideration を採点し最高得点の意図を採用）
+    - **IAiConsideration** … 思考の1候補（「追う」「攻撃する」…候補の数だけ用意する拡張点）。
       出力は CharacterIntent（＝入力と同じ語彙）
-```
 
 
 - **制御の経路はプレイヤーもNPCもエネミーも完全に共通**。AIは意図（CharacterIntent）を

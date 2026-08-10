@@ -325,7 +325,10 @@ arm.SetTarget(enemyPosition + Vector3.up * 0.6f);
    `Assets/Resources/PlayerAnimator.controller` が生成される
    （Idle/Attack/… のステート＋ `Speed` で 待機→歩き→走り を混ぜる Locomotion
    ブレンドツリー。**遷移は張っていない**）
-3. Avatar の組み上げで `RiggedAvatar` の代わりに構成する:
+3. 統合デモでは標準プレイヤー（[1]〜[5] 出撃・StarterAssets の
+   `Sample_StarterPlayerModel`。Controller は **Seed/Setup/Build StarterAssets Player**
+   が生成）がこの構成で動いている。Playables 直駆動との見比べは
+   [6] 揺れものデモ（UnityChan）。自前で組む場合は `RiggedAvatar` の代わりに構成する:
 
 ```csharp
 var controller = Resources.Load<RuntimeAnimatorController>("PlayerAnimator");

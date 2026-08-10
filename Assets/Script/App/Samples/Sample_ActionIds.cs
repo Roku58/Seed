@@ -22,5 +22,8 @@ namespace Seed.App
 
         /// <summary>[Shift] 歩き（押している間は移動強度を落とす。TPSの標準操作）。</summary>
         public static readonly ActionId Walk = new ActionId(36);
+
+        /// <summary>メニュー6番（[6]キー。揺れものデモへ出撃）。</summary>
+        public static readonly ActionId Slot6 = new ActionId(37);
     }
 }

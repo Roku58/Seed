@@ -41,10 +41,14 @@ namespace Seed.App
         /// <summary>迷路の行き止まり貫通率（‰。逃げ道の量）。</summary>
         public int BraidPermille { get; }
 
+        /// <summary>プレイヤーモデルの種類（0=標準: StarterAssets・Controller駆動 / 1=揺れものデモ: UnityChan・Playables）。</summary>
+        public int PlayerModelKind { get; }
+
         /// <summary>Sample_StageSpec を生成する。</summary>
         public Sample_StageSpec(int id, string debugName, string displayName,
             Color groundColor, float groundScale, float enemyAttackInterval,
-            int generatorKind = 0, int genWidth = 21, int genHeight = 21, int braidPermille = 0)
+            int generatorKind = 0, int genWidth = 21, int genHeight = 21, int braidPermille = 0,
+            int playerModelKind = 0)
         {
             Id = id;
             DebugName = debugName;
@@ -56,6 +60,7 @@ namespace Seed.App
             GenWidth = genWidth;
             GenHeight = genHeight;
             BraidPermille = braidPermille;
+            PlayerModelKind = playerModelKind;
         }
     }
 }

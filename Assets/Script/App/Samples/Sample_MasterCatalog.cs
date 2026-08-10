@@ -24,6 +24,9 @@ namespace Seed.App
         /// <summary>ステージ4（自動生成: 市街）。</summary>
         public static readonly StageId Stage4 = new StageId(204);
 
+        /// <summary>ステージ5（揺れものデモ: UnityChan・Playables 直駆動）。</summary>
+        public static readonly StageId Stage5 = new StageId(205);
+
         /// <summary>カタログを組み立てる（起動時に1回）。</summary>
         public static MasterDataSet Build(CharacterId playerId, CharacterId enemyId)
         {
@@ -48,6 +51,11 @@ namespace Seed.App
             catalog.Add(new Sample_StageSpec(Stage4.Value, "Township", "市街（自動生成・店に寄れる）",
                 groundColor: Color.gray, groundScale: 1f, enemyAttackInterval: 3.0f,
                 generatorKind: 2, genWidth: 31, genHeight: 31));
+
+            // 揺れものデモ（UnityChan・Playables 直駆動。標準は StarterAssets・Controller 駆動）
+            catalog.Add(new Sample_StageSpec(Stage5.Value, "SpringDemo", "揺れものデモ（UnityChan）",
+                groundColor: new Color(0.35f, 0.55f, 0.4f), groundScale: 2f, enemyAttackInterval: 4f,
+                playerModelKind: 1));
 
             catalog.ValidateGlobalIdUniqueness();
             return catalog;

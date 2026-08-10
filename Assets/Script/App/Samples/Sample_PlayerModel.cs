@@ -6,7 +6,11 @@ using UnityEngine;
 namespace Seed.App
 {
     /// <summary>
-    /// 【サンプル】実モデル（UnityChan・Humanoid）からプレイヤー表示を組み上げる束。
+    /// 【サンプル】揺れものデモ用プレイヤー（UnityChan・Humanoid・Playables 直駆動）の表示の束。
+    ///
+    /// 標準プレイヤー（StarterAssets・Controller 駆動＝Sample_StarterPlayerModel）とは
+    /// **完全に別のサンプル**——どちらを使うかはステージのマスターデータが決める
+    /// （ホーム [6] の揺れものデモ出撃がこちら）。
     ///
     /// [役割] プレハブの発見 → RiggedAvatar の構成（Playables 直駆動＋クリップ台帳）→
     /// リグ装着に必要な Humanoid ボーンの抽出 → **揺れものチェーンの収集**、までを1か所に集める。
@@ -21,7 +25,7 @@ namespace Seed.App
     /// Humanoid クリップに焼かれていない揺れもの専用ボーン——Seed.Motion の SpringBoneRig が
     /// そのまま駆動できる（揺れは基盤の SpringBoneRig が担う）。
     /// </summary>
-    public sealed class Sample_PlayerModel
+    public sealed class Sample_PlayerModel : Sample_IPlayerModel
     {
         /// <summary>セットアップ済みプレハブの Resources 名。</summary>
         private const string PrefabResourceName = "PlayerModel";
@@ -34,6 +38,21 @@ namespace Seed.App
 
         /// <summary>表示本体（IAvatar 実装。Behavior 遷移→クロスフェードの翻訳役）。</summary>
         public RiggedAvatar Avatar { get; private set; }
+
+        /// <summary>共通契約: 表示本体。</summary>
+        IAvatar Sample_IPlayerModel.Avatar => Avatar;
+
+        /// <summary>共通契約: Playables の再生器。</summary>
+        AnimationDriver Sample_IPlayerModel.Driver => Avatar != null ? Avatar.Driver : null;
+
+        /// <summary>共通契約: Controller 駆動ではない。</summary>
+        AnimatorAvatar Sample_IPlayerModel.ControllerAvatar => null;
+
+        /// <summary>共通契約: Playables 直駆動。</summary>
+        bool Sample_IPlayerModel.IsControllerDriven => false;
+
+        /// <summary>共通契約: 揺れもの一覧（このサンプルは常時有効）。</summary>
+        System.Collections.Generic.IReadOnlyList<SpringBoneRig> Sample_IPlayerModel.Springs => Springs;
 
         /// <summary>頭ボーン（注視リグ・FPS カメラの追従先）。</summary>
         public Transform Head { get; private set; }
